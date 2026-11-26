@@ -1,0 +1,67 @@
+component tvs_clamp
+% TVS Clamp Stack
+% Bidirectional TVS (transil) stack for IGBT active clamping studies:
+% N series devices per string, M parallel strings, modelled as a single
+% two-terminal element. Symmetric avalanche breakdown with a smooth,
+% purely algebraic knee (no exponentials), constant dynamic resistance,
+% sub-breakdown leakage and a lumped junction capacitance. The breakdown
+% voltage has a linear temperature coefficient; the device temperature is
+% a fixed parameter (no self-heating).
+%
+% Default parameters: 1.5KE440CA (V_BR = 440 V +/-5% @ 1 mA,
+% V_C = 602 V @ I_PP = 2.5 A -> r_z ~ 65 Ohm, V_RM = 376 V / I_R <= 1 uA
+% -> R_leak ~ 400 MOhm). Intended use: collector-to-gate clamp network
+% together with igbt_dyn (e.g. 5SNA 1000G650300 parameter set).
+
+  nodes
+    p = foundation.electrical.electrical; % +:left
+    n = foundation.electrical.electrical; % -:right
+  end
+
+  parameters
+    N     = {10,     '1'   }; % Series devices per string, N
+    M     = {1,      '1'   }; % Parallel strings, M
+    Vbr   = {440,    'V'   }; % Breakdown voltage per device @ Tref, V_BR
+    rz    = {65,     'Ohm' }; % Dynamic resistance per device, r_z
+    Rleak = {400e6,  'Ohm' }; % Sub-breakdown leakage resistance per device
+    Cj    = {100e-12,'F'   }; % Junction capacitance per device, C_j
+    dV    = {8,      'V'   }; % Knee smoothing voltage per device
+    alphaT= {1e-3,   '1/K' }; % Breakdown temperature coefficient, alpha_T
+    Tdev  = {298.15, 'K'   }; % Device temperature
+    Tref  = {298.15, 'K'   }; % Reference temperature for V_BR
+  end
+
+  parameters (Access = private)
+    Vbrs = N*Vbr;      % nominal stack breakdown (before TC correction)
+    rzs  = N*rz/M;     % stack dynamic resistance
+    Rls  = N*Rleak/M;  % stack leakage resistance
+    Cs   = M*Cj/N;     % stack capacitance
+    dVs  = N*dV;       % stack knee smoothing voltage
+  end
+
+  variables
+    v = {0, 'V'}; % Voltage
+    i = {0, 'A'}; % Current
+  end
+
+  branches
+    i : p.i -> n.i;
+  end
+
+  intermediates
+    % Temperature-corrected stack breakdown voltage
+    VbrT = Vbrs*(1 + alphaT*(Tdev - Tref));
+    % Smooth positive-part (softplus-like, algebraic: max(0,x) with
+    % rounding over ~dVs around the knee, safe for stiff solvers)
+    xp  = v - VbrT;
+    xn  = -v - VbrT;
+    spp = 0.5*(xp + sqrt(xp^2 + dVs^2));
+    spn = 0.5*(xn + sqrt(xn^2 + dVs^2));
+  end
+
+  equations
+    v == p.v - n.v;
+    i == v/Rls + (spp - spn)/rzs + Cs*der(v);
+  end
+
+end

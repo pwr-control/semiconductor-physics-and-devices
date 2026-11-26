@@ -1,0 +1,425 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
+
+\sisetup{per-mode=symbol, output-decimal-marker={,}}
+
+\newcommand{\dpar}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\dparq}[2]{\frac{\partial^2 #1}{\partial #2^2}}
+
+\title{Dall'equazione di continuit\`a ambipolare\\ al modello a controllo di carica}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent
+Derivazione dell'equazione di continuit\`a ambipolare nella regione di drift dei
+dispositivi bipolari di potenza, e sua riduzione al modello a controllo di carica
+$\dot{Q} = i - Q/\tau$. Vengono esplicitate tutte le ipotesi, in modo da rendere
+evidenti i limiti di validit\`a del modello e la necessit\`a della formulazione a
+due cariche di Lauritzen--Ma per riprodurre la coda e la softness del recovery.
+\end{abstract}
+
+\section{Ipotesi di partenza}
+
+Si considera la regione di drift $n^-$ di un dispositivo bipolare (diodo PiN, IGBT,
+tiristore), di sezione $A$ e larghezza $W$, delimitata dalle ascisse $x_1$ (giunzione
+lato anodo) e $x_2$ (contatto lato catodo). Le ipotesi sono:
+
+\begin{enumerate}
+  \item \textbf{Unidimensionalit\`a}: tutte le grandezze dipendono da $x$ e $t$.
+  \item \textbf{Drogaggio uniforme} $N_D$ nella regione di drift.
+  \item \textbf{Quasi-neutralit\`a}: $n - p = N_D$ in ogni punto e istante. Il campo
+        elettrico esiste, ma \`e determinato dalla condizione di neutralit\`a e non
+        dall'equazione di Poisson (la carica spaziale netta \`e trascurabile rispetto
+        alle densit\`a di portatori).
+  \item \textbf{Ricombinazione lineare}: $U = \delta p / \tau$, con $\tau$ costante
+        (vita media di alta iniezione, indipendente da densit\`a e temperatura).
+        La concentrazione di equilibrio $p_0 = n_i^2/N_D$ \`e trascurabile rispetto a
+        quella del plasma, quindi nel seguito $U \approx p/\tau$.
+  \item \textbf{Mobilit\`a costanti} e relazione di Einstein $D = (kT/q)\mu$ valida.
+\end{enumerate}
+
+Dalla quasi-neutralit\`a con drogaggio uniforme discendono due identit\`a usate
+sistematicamente nel seguito:
+\begin{equation}
+  \dpar{n}{x} = \dpar{p}{x}, \qquad \dpar{n}{t} = \dpar{p}{t}.
+  \label{eq:neutralita}
+\end{equation}
+
+\section{Equazioni di trasporto e continuit\`a}
+
+Le densit\`a di corrente delle due specie contengono un termine di deriva e uno di
+diffusione:
+\begin{align}
+  J_n &= q\mu_n n E + qD_n \dpar{n}{x}, \label{eq:Jn}\\
+  J_p &= q\mu_p p E - qD_p \dpar{p}{x}. \label{eq:Jp}
+\end{align}
+
+Le corrispondenti equazioni di continuit\`a sono:
+\begin{align}
+  \dpar{n}{t} &= +\frac{1}{q}\dpar{J_n}{x} - U, \label{eq:contn}\\
+  \dpar{p}{t} &= -\frac{1}{q}\dpar{J_p}{x} - U. \label{eq:contp}
+\end{align}
+
+Il problema \`e che $E$ \`e incognito: non \`e un ingresso, ma una variabile
+determinata dalla distribuzione dei portatori e dalla corrente. Occorre eliminarlo, e
+lo si fa in due passi: prima si elimina la sua derivata $\partial E/\partial x$, cos\`i
+che non serve l'equazione di Poisson (questa sezione); poi si elimina $E$ stesso,
+esprimendolo con la corrente totale (Sez.~\ref{sec:elimE}).
+
+Sommando la \eqref{eq:contn} e la \eqref{eq:contp}, e usando la seconda delle
+\eqref{eq:neutralita}, si ottiene anche
+\begin{equation}
+  \dpar{J}{x} = 0, \qquad J = J_n + J_p ,
+  \label{eq:Juniforme}
+\end{equation}
+cio\`e la densit\`a di corrente totale \`e uniforme lungo la regione di drift (la
+corrente di spostamento \`e trascurata con la quasi-neutralit\`a): $J(t) = i(t)/A$
+\`e l'ingresso imposto dal circuito.
+
+\section{Eliminazione della derivata del campo}
+
+Si moltiplica la \eqref{eq:contn} per $\mu_p p$, la \eqref{eq:contp} per $\mu_n n$, e
+si sommano:
+\begin{equation}
+  \mu_p p \dpar{n}{t} + \mu_n n \dpar{p}{t}
+  = \frac{\mu_p p}{q}\dpar{J_n}{x} - \frac{\mu_n n}{q}\dpar{J_p}{x}
+    - (\mu_p p + \mu_n n)\,U .
+  \label{eq:combinata}
+\end{equation}
+
+\paragraph{Primo membro.} Per la seconda delle \eqref{eq:neutralita}:
+\begin{equation}
+  \mu_p p \dpar{n}{t} + \mu_n n \dpar{p}{t} = (\mu_n n + \mu_p p)\dpar{p}{t}.
+\end{equation}
+
+\paragraph{Termini di campo.} Sostituendo le \eqref{eq:Jn}--\eqref{eq:Jp} nel secondo
+membro, la parte contenente $E$ vale
+\begin{equation}
+  \mu_n\mu_p \left[ p\,\dpar{(nE)}{x} - n\,\dpar{(pE)}{x} \right]
+  = \mu_n\mu_p \left[ p\!\left(n\dpar{E}{x} + E\dpar{n}{x}\right)
+                    - n\!\left(p\dpar{E}{x} + E\dpar{p}{x}\right) \right].
+\end{equation}
+I termini in $\partial E/\partial x$ si cancellano identicamente --- ed \`e questo il
+punto centrale della derivazione: \emph{la divergenza del campo scompare, quindi non
+serve risolvere l'equazione di Poisson}. Resta, usando la prima delle
+\eqref{eq:neutralita}:
+\begin{equation}
+  \mu_n\mu_p E \left( p - n \right) \dpar{p}{x}.
+\end{equation}
+
+\paragraph{Termini di diffusione.} Analogamente:
+\begin{equation}
+  \mu_p p D_n \dparq{n}{x} + \mu_n n D_p \dparq{p}{x}
+  = \left( \mu_p p D_n + \mu_n n D_p \right) \dparq{p}{x}.
+\end{equation}
+
+\paragraph{Risultato.} Dividendo la \eqref{eq:combinata} per $(\mu_n n + \mu_p p)$ si
+ottiene l'\textbf{equazione di continuit\`a ambipolare}:
+\begin{equation}
+  \boxed{\;
+  \dpar{p}{t} = D_a \dparq{p}{x} - \mu_a E \dpar{p}{x} - \frac{p}{\tau}
+  \;}
+  \label{eq:ambipolare}
+\end{equation}
+con i coefficienti ambipolari
+\begin{align}
+  D_a &= \frac{\mu_p p D_n + \mu_n n D_p}{\mu_n n + \mu_p p}
+       = \frac{(n+p)\,D_n D_p}{n D_n + p D_p}, \label{eq:Da}\\[4pt]
+  \mu_a &= \frac{(n-p)\,\mu_n \mu_p}{\mu_n n + \mu_p p}. \label{eq:mua}
+\end{align}
+La seconda forma della \eqref{eq:Da} segue dalla relazione di Einstein.
+
+L'interpretazione fisica \`e che le due specie non si muovono in modo indipendente:
+qualsiasi separazione di carica genera un campo che le richiama. Elettroni e lacune si
+propagano quindi come un unico pacchetto neutro, con coefficienti \emph{efficaci} dati
+dalle \eqref{eq:Da}--\eqref{eq:mua}.
+
+La \eqref{eq:ambipolare} contiene per\`o ancora il campo $E$, nel termine di deriva
+ambipolare: finora \`e stata eliminata solo la sua derivata.
+
+\section{Eliminazione del campo}
+\label{sec:elimE}
+
+Il campo si ricava dalla corrente totale. Sommando la \eqref{eq:Jn} e la \eqref{eq:Jp},
+con la prima delle \eqref{eq:neutralita},
+\begin{equation}
+  J = q\,(\mu_n n + \mu_p p)\,E + q\,(D_n - D_p)\,\dpar{p}{x}
+  \quad\Longrightarrow\quad
+  E = \frac{J/q - (D_n - D_p)\,\partial p/\partial x}{\mu_n n + \mu_p p} .
+  \label{eq:E}
+\end{equation}
+Il campo ha quindi due parti: una ohmica, proporzionale alla corrente totale
+attraverso la conducibilit\`a del plasma, e una di diffusione, che compare quando le due
+specie hanno diffusivit\`a diverse (il campo di Dember). Sostituendo la \eqref{eq:E}
+nella \eqref{eq:ambipolare}, con $n - p = N_D$ nella \eqref{eq:mua}, si ottiene
+l'equazione ambipolare senza $E$:
+\begin{equation}
+  \boxed{\;
+  \dpar{p}{t} = D_a \dparq{p}{x}
+  - \frac{N_D\,\mu_n\mu_p}{(\mu_n n + \mu_p p)^2}
+    \left[\frac{J(t)}{q} - (D_n - D_p)\,\dpar{p}{x}\right]\dpar{p}{x}
+  - \frac{p}{\tau}
+  \;}
+  \label{eq:ambipolareJ}
+\end{equation}
+Le sole grandezze che vi compaiono sono la concentrazione $p(x,t)$ e la corrente
+totale $J(t) = i(t)/A$, uniforme per la \eqref{eq:Juniforme} e imposta dal circuito.
+Il campo non \`e scomparso dalla fisica (\`e ancora la \eqref{eq:E}, e serve per
+calcolare la caduta di tensione sulla regione di drift), ma \`e scomparso dal problema
+da risolvere per $p$.
+
+\section{Limite di alta iniezione}
+
+In conduzione piena il plasma iniettato supera di ordini di grandezza il drogaggio,
+$n \approx p \gg N_D$. Allora:
+\begin{equation}
+  \mu_a \longrightarrow 0, \qquad
+  D_a \longrightarrow \frac{2 D_n D_p}{D_n + D_p} .
+\end{equation}
+
+Il coefficiente del termine di deriva nella \eqref{eq:ambipolareJ} \`e proporzionale a
+$N_D/(\mu_n n + \mu_p p)^2 \approx N_D/[(\mu_n+\mu_p)\,p]^2$, e tende a zero come
+$N_D/p^2$: il termine di deriva sparisce, qualunque sia la corrente. Il campo resta
+presente (\`e ci\`o che mantiene la neutralit\`a e porta la corrente ohmica), ma il
+trasporto netto del plasma \`e puramente diffusivo. L'equazione si riduce a
+\begin{equation}
+  \dpar{p}{t} = D \dparq{p}{x} - \frac{p}{\tau} .
+  \label{eq:diffusione}
+\end{equation}
+
+Nel silicio a \SI{300}{\kelvin}, con $\mu_n \approx \SI{1400}{\centi\meter\squared\per\volt\per\second}$
+e $\mu_p \approx \SI{450}{\centi\meter\squared\per\volt\per\second}$, si ha
+$D_n \approx \SI{36}{\centi\meter\squared\per\second}$,
+$D_p \approx \SI{12}{\centi\meter\squared\per\second}$ e quindi
+$D_a \approx \SI{18}{\centi\meter\squared\per\second}$; lo scattering portatore-portatore
+in alta iniezione lo riduce in pratica a \SIrange{12}{15}{\centi\meter\squared\per\second}.
+La lunghezza di diffusione ambipolare $L_a = \sqrt{D_a \tau}$ vale circa
+\SI{40}{\micro\meter} per $\tau = \SI{1}{\micro\second}$ e \SI{130}{\micro\meter} per
+$\tau = \SI{10}{\micro\second}$: il rapporto $W/L_a$ decide se la distribuzione di
+plasma \`e sostanzialmente piatta (buona modulazione di conducibilit\`a) oppure
+fortemente decrescente.
+
+\section{Integrazione: dal profilo alla carica}
+
+Si definisce la carica immagazzinata nella regione di drift
+\begin{equation}
+  Q(t) = qA \int_{x_1}^{x_2} p(x,t)\, dx .
+\end{equation}
+
+Moltiplicando la \eqref{eq:diffusione} per $qA$ e integrando su $[x_1,x_2]$, il termine
+di ricombinazione d\`a $-Q/\tau$, mentre quello diffusivo --- essendo una derivata
+seconda --- si integra esattamente:
+\begin{equation}
+  \frac{dQ}{dt}
+  = qAD \left.\dpar{p}{x}\right|_{x_1}^{x_2} - \frac{Q}{\tau}.
+  \label{eq:integrata}
+\end{equation}
+
+Fino a questo punto non sono state introdotte approssimazioni ulteriori rispetto
+all'alta iniezione. Il termine di frontiera contiene i gradienti del plasma alle due
+estremit\`a della base, che le condizioni al contorno legano alla corrente.
+
+\section{Condizioni al contorno}
+
+Entrambe le estremit\`a della base confinano con un emettitore, e si assumono emettitori
+ideali (efficienza di iniezione unitaria).
+
+\begin{itemize}
+  \item \textbf{Lato anodo} ($x_1$, giunzione $p^+/n^-$): l'emettitore $p^+$ inietta
+        lacune e non raccoglie elettroni, quindi $J_n(x_1) = 0$. Dalla \eqref{eq:Jn}
+        il campo vale $E = -(D_n/\mu_n n)\,\partial p/\partial x$; sostituito nella
+        \eqref{eq:Jp}, con $n \approx p$ e la relazione di Einstein
+        $\mu_p D_n/\mu_n = D_p$, d\`a
+        \begin{equation}
+          J = J_p(x_1) = -2qD_p \left.\dpar{p}{x}\right|_{x_1} .
+        \end{equation}
+  \item \textbf{Lato catodo} ($x_2$, giunzione $n^-/n^+$): l'emettitore $n^+$ inietta
+        elettroni e non raccoglie lacune, quindi $J_p(x_2) = 0$. Allo stesso modo
+        \begin{equation}
+          J = J_n(x_2) = +2qD_n \left.\dpar{p}{x}\right|_{x_2} .
+        \end{equation}
+\end{itemize}
+I due gradienti sono quindi entrambi diversi da zero e di segno opposto: il plasma
+\`e alimentato da entrambi i lati e ha il minimo all'interno della base (il classico
+profilo a catenaria). Sostituendoli nella \eqref{eq:integrata}, con
+$D = D_a = 2D_nD_p/(D_n+D_p)$,
+\begin{equation}
+  qAD_a \left.\dpar{p}{x}\right|_{x_1}^{x_2}
+  = A\,D_a\,J \left(\frac{1}{2D_n} + \frac{1}{2D_p}\right)
+  = A\,J = i(t) ,
+\end{equation}
+esattamente: le due correnti di bordo, pesate con le diffusivit\`a delle due specie,
+ricompongono la corrente di terminale. Si ottiene cos\`i la \textbf{forma base del
+modello a controllo di carica}:
+\begin{equation}
+  \boxed{\;
+  \frac{dQ}{dt} = i(t) - \frac{Q}{\tau}
+  \;}
+  \label{eq:chargecontrol}
+\end{equation}
+
+Il bilancio \`e immediato: la corrente iniettata o accumula plasma, o alimenta la
+ricombinazione. Lo stesso risultato si ottiene in una riga integrando direttamente
+la continuit\`a delle lacune \eqref{eq:contp} sulla base:
+$dQ/dt = A\,[J_p(x_1) - J_p(x_2)] - Q/\tau = i - Q/\tau$. Questa via mostra che la
+\eqref{eq:chargecontrol} non richiede l'alta iniezione n\'e la forma del profilo, ma
+solo emettitori ideali e ricombinazione lineare: l'equazione ambipolare serve a
+conoscere il profilo $p(x,t)$, che il modello a controllo di carica non vede.
+
+\section{Soluzioni notevoli}
+
+\subsection{Regime stazionario}
+\begin{equation}
+  Q_0 = I_F \tau .
+\end{equation}
+\`E la modulazione di conducibilit\`a: la bassa $V_F$ di un PiN ad alta tensione
+esiste solo perch\'e quel plasma \`e presente, ed \`e esattamente la stessa carica che
+dovr\`a poi essere estratta. Il compromesso $V_F$ contro $Q_{rr}$ non \`e un difetto
+tecnologico, ma una conseguenza diretta della \eqref{eq:chargecontrol}.
+
+\subsection{Spegnimento a circuito aperto ($i = 0$)}
+\begin{equation}
+  Q(t) = Q_0 \, e^{-t/\tau},
+\end{equation}
+processo lento, governato dalla sola ricombinazione.
+
+\subsection{Spegnimento a corrente inversa imposta ($i = -I_R$)}
+\begin{equation}
+  Q(t) = -I_R \tau + \left( Q_0 + I_R \tau \right) e^{-t/\tau},
+\end{equation}
+che si annulla all'istante
+\begin{equation}
+  \boxed{\;
+  t_s = \tau \ln\!\left( 1 + \frac{I_F}{I_R} \right)
+  \;}
+  \label{eq:storage}
+\end{equation}
+Questo \`e il classico \emph{storage time}. La \eqref{eq:storage} \`e il risultato di
+maggiore utilit\`a pratica del modello: consente di stimare $\tau$ da una misura di
+recovery in commutazione resistiva.
+
+\subsection{Spegnimento su rampa ($i = I_F - a\,t$)}
+\label{sec:rampa}
+Con la corrente che scende con pendenza costante $a = -di/dt$, la carica allo zero
+della corrente ($t_0 = I_F/a$) vale
+\begin{equation}
+  Q(t_0) = a\,\tau^2 \left(1 - e^{-I_F/(a\tau)}\right) .
+  \label{eq:rampa}
+\end{equation}
+La carica statica $I_F\tau$ arriva intera allo zero della corrente solo per
+commutazioni molto rapide, $a\tau \gg I_F$; a basso $di/dt$ gran parte di essa si
+ricombina durante la rampa e allo zero ne resta $a\tau^2 \ll I_F\tau$. L'approssimazione
+$Q_{rr} \approx I_F\tau$ vale quindi ad \emph{alto} $di/dt$, non a basso, e a basso
+$di/dt$ porterebbe a sovrastimare $\tau$ di molto (si veda la nota
+\texttt{lauritzen\_ma\_datasheet\_conversion}, che tratta la rampa in modo esatto).
+
+\subsection{Lettura sistemistica}
+
+La \eqref{eq:chargecontrol} \`e un sistema del primo ordine con stato $Q$ e ingresso $i$:
+\begin{equation}
+  \frac{Q(s)}{I(s)} = \frac{\tau}{1 + s\tau}.
+\end{equation}
+I primi due limiti elencati nel seguito discendono da questa struttura a una sola carica.
+
+\section{Limiti del modello}
+
+\begin{enumerate}
+  \item \textbf{Nessuna coda, nessuna softness.} Il modello non distingue la carica
+        vicina alla giunzione dal resto: la corrente inversa segue il circuito
+        finch\'e $Q > 0$, e quando $Q = 0$ si annulla di colpo. Su una rampa il picco
+        $I_{rr}$ esiste e dipende da $di/dt$ (\`e la corrente raggiunta quando $Q$ si
+        esaurisce), ma il recovery \`e sempre un triangolo, con $Q_{rr} = I_{rr}^2/(2a)$:
+        comportamento \emph{snappy} e \emph{soft} risultano indistinguibili.
+  \item \textbf{Perdita dell'informazione spaziale.} $Q$ \`e un integrale. In realt\`a
+        il plasma viene rimosso a partire dal lato giunzione mentre permane sul lato
+        catodo, e la tensione inizia a salire quando si svuota la giunzione, non
+        quando $Q = 0$: sono due istanti distinti.
+  \item \textbf{$\tau$ costante.} La vita media dipende dalla densit\`a di portatori
+        (Auger in alta iniezione) e dalla temperatura. La crescita di $\tau$ con $T$
+        \`e la ragione per cui $Q_{rr}$ e $I_{rr}$ peggiorano a caldo; se serve la
+        dipendenza termica, va introdotta esplicitamente come $\tau(T)$.
+\end{enumerate}
+
+\section{Estensione di Lauritzen--Ma}
+
+La formulazione di Lauritzen--Ma introduce, accanto alla carica centrale di drift
+$q_M$, la carica di bordo $q_E$, che rappresenta la concentrazione del plasma accanto
+alla giunzione:
+\begin{align}
+  i &= \frac{q_E - q_M}{T_M}, \label{eq:LM1}\\
+  \frac{dq_M}{dt} + \frac{q_M}{\tau} - \frac{q_E - q_M}{T_M} &= 0, \label{eq:LM2}\\
+  q_E &= (\tau + T_M)\, I_S \left(e^{v_j/(nV_T)} - 1\right) , \label{eq:LM3}
+\end{align}
+dove $T_M$ \`e il tempo di transito diffusivo; per un profilo parabolico simmetrico
+vale $W^2/(12 D_a)$. La \eqref{eq:LM1} \`e la discretizzazione a differenze finite del
+gradiente di frontiera della \eqref{eq:integrata}. La carica $q_E$ non \`e una seconda
+variabile di stato: \`e una funzione algebrica della tensione di giunzione,
+\eqref{eq:LM3}, e il modello resta del primo ordine, con il solo stato $q_M$.
+
+Finch\'e la giunzione conduce, eliminando $q_E$ tra \eqref{eq:LM1} e \eqref{eq:LM2} si
+ricade esattamente nella \eqref{eq:chargecontrol} per $q_M$. Tutto ci\`o che il modello
+aggiunge sta nel vincolo $q_E \geq 0$: la giunzione si interdice quando $q_E$, e non
+$q_M$, raggiunge lo zero, cio\`e quando $q_M = T_M\,|i|$, con carica ancora presente
+nella base. Da quell'istante la corrente non \`e pi\`u imposta dal circuito ma vale
+$i = -q_M/T_M$, e la carica residua decade con la costante di tempo
+$\tau_{rr} = \tau T_M/(\tau + T_M)$: \`e la coda esponenziale del recovery, con softness
+$2T_M/\tau$ su una rampa lunga.
+
+\paragraph{Estrazione dei parametri.} Da $I_{rr}$ e $Q_{rr}$ di datasheet, alla
+pendenza $a$ e alla corrente $I_F$ della prova:
+\begin{itemize}
+  \item costante di tempo della coda, esatta per qualunque rampa:
+        $\tau_{rr} = Q_{rr}/I_{rr} - I_{rr}/(2a)$;
+  \item vita media: su una rampa lunga $\tau = \tau_{rr} + I_{rr}/a$, in generale
+        per iterazione dall'equazione del picco;
+  \item tempo di transito: $T_M = \tau\,\tau_{rr}/(\tau - \tau_{rr})$.
+\end{itemize}
+La lettura $\tau \approx Q_{rr}/I_F$ va evitata: vale solo per commutazioni molto
+rapide (Sez.~\ref{sec:rampa}). Il procedimento completo, con i limiti di
+validit\`a e la sensibilit\`a ai dati, \`e nella nota di questo repository
+\texttt{diode/lauritzen\_ma\_datasheet\_\allowbreak conversion}.
+
+L'estensione risolve il punto 1 dell'elenco precedente e, in forma concentrata, il
+punto 2: la tensione sale quando si svuota il bordo della base, non quando $Q = 0$. Il
+punto 3 resta aperto, ed \`e la ragione per cui i modelli dei simulatori aggiungono
+$\tau(T)$ ed eventualmente ulteriori stati.
+
+\paragraph{Coda di corrente dell'IGBT.} Dopo l'interdizione del canale MOS vale la
+stessa equazione con $i = 0$ nella base, da cui
+$Q(t) = Q_0\,e^{-t/\tau}$, e la corrente di coda, proporzionale alla carica residua, decade
+con la stessa costante di tempo. Va per\`o osservato che il legame fra corrente di
+terminale e carica non \`e semplicemente $Q/\tau$: una parte della carica ricombina, un'altra viene
+estratta dal campo nella regione svuotata. Nei modelli pratici si impiega quindi una
+$\tau_{\text{eff}}$ inferiore alla vita media di alta iniezione, estratta direttamente
+dalla forma d'onda di coda.
+
+\section*{Riferimenti}
+
+\begin{enumerate}
+  \item P.~O. Lauritzen, C.~L. Ma, ``A simple diode model with reverse recovery,''
+        \emph{IEEE Trans. Power Electron.}, vol.~6, no.~2, pp.~188--191, 1991.
+  \item C.~L. Ma, P.~O. Lauritzen, ``A simple power diode model with forward and
+        reverse recovery,'' \emph{IEEE Trans. Power Electron.}, vol.~8, no.~4,
+        pp.~342--346, 1993.
+  \item B.~J. Baliga, \emph{Fundamentals of Power Semiconductor Devices}, Springer,
+        2008.
+  \item S.~M. Sze, K.~K. Ng, \emph{Physics of Semiconductor Devices}, 3rd ed., Wiley,
+        2007.
+\end{enumerate}
+
+\end{document}

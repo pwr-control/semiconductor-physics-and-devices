@@ -1,0 +1,121 @@
+component thyristor_rr
+% Thyristor with Reverse Recovery (Lauritzen-Ma charge dynamics)
+% ---------------------------------------------------------------
+% Piecewise-linear SCR static characteristic + Lauritzen-Ma lumped
+% charge model for reverse recovery, plus latching/holding logic.
+% Defaults: ABB 5STP 26N6500 (6.5 kV / 2880 A phase-control thyristor),
+% typical values at Tvj = 125 degC, validated in a six-pulse bridge.
+%
+% Static PWL characteristic (as in Thyristor (Piecewise Linear)):
+%   on:  i_s = (v - Vf*(1 - Ron*Goff))/Ron
+%   off: i_s = v*Goff
+%
+% Charge model (as documented for the Simscape Diode block):
+%   qE = (tau + Tm) * i_s                injected charge
+%   der(qM) = (qE - qM)/Tm - qM/tau      stored charge
+%   i  = (qE - qM)/Tm                    terminal current
+%
+% tau_rr = tau*Tm/(tau+Tm) is the recovery tail time constant.
+%
+% Latching logic (event variable 'on'):
+%   turn ON  : gate signal G > Vgt while v > 0
+%   turn OFF : i < Ih  (gate state is IRRELEVANT: a real thyristor
+%              commutates naturally even with the gate still high)
+%   re-trigger: forward voltage above Vth while EITHER
+%     (a) EXCESS charge qExc > Qth, or
+%     (b) time - toff < tq  (explicit timer, belt and braces)
+%
+% IMPORTANT - excess charge:
+%   In the blocking state qM does NOT decay to zero: it settles at the
+%   leakage steady state qM_inf = tau*Goff*v. Comparing qM itself
+%   against Qth therefore makes the device self-trigger as soon as
+%   forward voltage returns (for the 26N6500 at VDRM, tau*Goff*v is
+%   several microcoulombs). The re-trigger condition must use the
+%   excess charge qExc = qM - tau*Goff*v, which is zero in any steady
+%   state and equals the residual recovery charge during turn-off.
+%
+% Parameter sets (see accompanying document):
+%   A (default, validated): tau = 100 us, Tm = 190 us
+%       -> Qrr within 5 % of datasheet, tail 66 us, IRM ~20 % low
+%   B (IRM-centred alternative): tau = 85 us, Tm = 100 us
+%       -> IRM and Qrr both centred, tail shortens to ~46 us
+%   The two-charge model has only two degrees of freedom and cannot
+%   match IRM, Qrr and the tail constant simultaneously.
+
+  nodes
+    a = foundation.electrical.electrical; % A:left
+    k = foundation.electrical.electrical; % K:right
+  end
+
+  inputs
+    G = {0, 'V'}; % G:left  gate command (compare against Vgt)
+  end
+
+  parameters
+    Vf   = {1.12,    'V'    };  % Forward voltage (VT0, 125 degC)
+    Ron  = {0.29e-3, 'Ohm'  };  % On-state resistance (rT, 125 degC)
+    Goff = {1e-5,    '1/Ohm'};  % Off-state conductance (IRRM/VRRM, worst case)
+    Vgt  = {1.2,     'V'    };  % Gate trigger threshold
+    Vth  = {50,      'V'    };  % Forward voltage threshold for re-trigger
+    Il   = {0.25,    'A'    };  % Latching current (125 degC)
+    Ih   = {0.075,   'A'    };  % Holding current (125 degC)
+    tau  = {100e-6,  's'    };  % Carrier lifetime (transit time)
+    Tm   = {190e-6,  's'    };  % Charge cross-over time constant
+    Qth  = {1e-6,  'C'    };  	% Excess-charge re-trigger threshold
+    tq   = {800e-6,  's'    };  % Circuit-commutated turn-off time (timer)
+  end
+
+  parameters (Access = private)
+    Kq = tau + Tm;              % qE gain so that i -> i_s in steady state
+  end
+
+  variables
+    i  = {0, 'A'};              % Through variable A->K
+    v  = {0, 'V'};              % Across variable A-K
+    qM = {value = {0, 'C'}, priority = priority.high}; % Stored charge
+  end
+
+  variables (Event = true)
+    on   = 0;                   % Latch state: 0 = blocking, 1 = conducting
+    toff = {-1, 's'};           % Time of last turn-off event
+  end
+
+  intermediates
+    % Static PWL current
+    i_s  = if on > 0.5, (v - Vf*(1 - Ron*Goff))/Ron else v*Goff end;
+    % Injected charge
+    qE   = Kq * i_s;
+    % Excess charge over the leakage steady state (see header)
+    qExc = qM - tau*Goff*v;
+  end
+
+  branches
+    i : a.i -> k.i;
+  end
+
+  equations
+    v == a.v - k.v;
+    % Lauritzen-Ma lumped charge dynamics
+    der(qM) == (qE - qM)/Tm - qM/tau;
+    i       == (qE - qM)/Tm;
+  end
+
+  events
+    when edge((G > Vgt) && (v > {0,'V'}) && (on < 0.5))
+      on = 1;                   % gate turn-on
+    elsewhen edge((v > Vth) && (on < 0.5) && ...
+                  ((qExc > Qth) || (time - toff < tq)))
+      on = 1;                   % tq violation: spontaneous re-fire
+    elsewhen edge((i < Ih) && (on > 0.5))
+      on   = 0;                 % natural commutation below holding
+      toff = time;              % start tq timer
+    end
+  end
+
+  annotations
+    a : Side = left;
+    k : Side = right;
+    G : Side = bottom;
+  end
+
+end

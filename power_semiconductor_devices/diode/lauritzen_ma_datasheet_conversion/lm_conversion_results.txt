@@ -1,0 +1,124 @@
+Lauritzen-Ma model and datasheet data: worked examples
+
+1. General relations
+   fall time of an exponential tail, t_b = kappa*tau_rr: line through 90 % and 25 %: kappa = 1.8790; instant at 10 %: 2.3026; instant at 25 %: 1.3863; triangle with the same charge: 2
+   stretch factor 3 of the recovery time read at 10 %: softness s = 1.737
+   long-ramp factor F = Irr/(a*(tau - tau_rr)) = 1 - exp(-x), and Qrr relative to the long-ramp value:
+     x = 2: F = 0.8647 (-13.5 %), Qrr -23.1 % (rho = 0.1) to -17.4 % (rho = 0.5)
+     x = 3: F = 0.9502 (-5.0 %), Qrr -8.8 % (rho = 0.1) to -6.6 % (rho = 0.5)
+     x = 4: F = 0.9817 (-1.8 %), Qrr -3.3 % (rho = 0.1) to -2.4 % (rho = 0.5)
+     x = 5: F = 0.9933 (-0.7 %), Qrr -1.2 % (rho = 0.1) to -0.9 % (rho = 0.5)
+   data converted with the long-ramp closed form: what the set returns at the datasheet point
+     Irr/IF     s    x=T1/tau   Irr'/Irr   Qrr'/Qrr   tau_LR/tau   TM_LR/TM
+      0.10   0.5     8.799     0.9998     0.9997      0.9999     1.0000
+      0.20   0.5     4.767     0.9917     0.9862      0.9932     1.0017
+      0.30   0.5     3.371     0.9680     0.9473      0.9723     1.0069
+      0.50   0.5     2.177     0.9019     0.8429      0.9072     1.0232
+      1.00   0.5     1.182     0.7542     0.6307      0.7385     1.0654
+      0.10   1.0     7.330     0.9993     0.9990      0.9996     1.0002
+      0.20   1.0     3.948     0.9815     0.9724      0.9871     1.0065
+      0.30   1.0     2.765     0.9422     0.9149      0.9571     1.0214
+      0.50   1.0     1.755     0.8505     0.7869      0.8777     1.0611
+      1.00   1.0     0.929     0.6720     0.5618      0.6968     1.1516
+      0.10   2.0     5.489     0.9959     0.9945      0.9979     1.0021
+      0.20   2.0     2.917     0.9489     0.9328      0.9722     1.0278
+      0.30   2.0     2.011     0.8783     0.8426      0.9283     1.0717
+      0.50   2.0     1.249     0.7467     0.6837      0.8326     1.1674
+      1.00   2.0     0.644     0.5361     0.4532      0.6438     1.3562
+      0.10   4.0     3.634     0.9742     0.9692      0.9910     1.0179
+      0.20   4.0     1.888     0.8581     0.8338      0.9439     1.1123
+      0.30   4.0     1.280     0.7430     0.7048      0.8863     1.2275
+      0.50   4.0     0.780     0.5763     0.5275      0.7799     1.4401
+      1.00   4.0     0.395     0.3657     0.3193      0.5922     1.8155
+   at Irr/IF = 0.1 the closed-form set returns peak and charge within 0.6 % for s <= 2 and within 3.1 % for s = 4
+   Irr returned within 1 % of the data for Irr/IF below 0.210 (s = 0.5), 0.169 (s = 1), 0.122 (s = 2), 0.078 (s = 4)
+   Irr returned within 5 % of the data for Irr/IF below 0.358 (s = 0.5), 0.282 (s = 1), 0.198 (s = 2), 0.124 (s = 4)
+
+2. Diode A: rectifier diode, long ramp
+   recovery data: IF = 1000 A, a = 5 A/us, Irr = 125 A, Qrr = 3200 uC, VR = 100 V, T = 150 C
+   ta = Irr/a = 25.00 us; triangle charge Irr*ta/2 = 1562.50 uC (49 % of Qrr); tail time constant tau_rr = 13.10 us; softness s = 1.048
+   exact conversion (7 iterations): tau = 38.17 us, TM = 19.95 us, rho = 0.343, IF/(a*tau) = 5.240, T1/tau = 5.895, F = 0.9972
+   long-ramp closed form: tau = 38.10 us (-0.2 %), TM = 19.96 us (+0.1 %); this set returns Irr = 124.66 A (-0.3 %), Qrr = 3187.01 uC (-0.4 %) at the datasheet point
+   exact set back at the datasheet point: Irr = 125.0000 A, Qrr = 3200.0000 uC; step-by-step integration of the charge equations: Irr = 125.0000 A, Qrr = 3200.0000 uC
+   charge stored at the current zero: 7245.8 uC (tau*IF = 38169.0 uC); recovered 44 % of it
+   if the datasheet charge is integrated down to 2 % of Irr: tau_rr = 13.37 us, tau = 38.44 us, TM = 20.49 us
+   local exponents of the model at the datasheet point: Irr ~ a^0.99 IF^0.01, Qrr ~ a^0.98 IF^0.02
+   forward characteristic, n = 1: secant through 500 A and 1500 A: IS = 2.172e-08 A, RS = 0.5599 mOhm; tangent at 1000 A: IS = 2.767e-08 A, RS = 0.5635 mOhm
+   forward characteristic, n = 2: secant through 500 A and 1500 A: IS = 2.504e-03 A, RS = 0.5199 mOhm; tangent at 1000 A: IS = 3.191e-03 A, RS = 0.5271 mOhm
+   model (secant, n = 2) against the straight line: 50 A: 0.748 V (-132 mV), 100 A: 0.825 V (-85 mV), 250 A: 0.969 V (-31 mV), 500 A: 1.150 V (+0 mV), 1000 A: 1.460 V (+10 mV), 1500 A: 1.750 V (+0 mV), 2500 A: 2.307 V (-43 mV)
+   leakage at the rated point: Rr = VRRM/IRRM = 90 kOhm; charge of the junction capacitance up to VR = 100 V: 0.308 uC
+   base width that corresponds to TM with D = 12 cm2/s: 536 um (parabolic profile), 486 um (slowest mode), 565 um (static profile, d/L = 1.32); diffusion length 214 um
+   recovery time: line through 90 % and 25 %: 49.6 us; instant at 10 %: 55.2 us (stretch factor 2.21); triangle with the same charge 2*Qrr/Irr: 51.2 us
+   fall time over rise time: 0.98 (line), 1.05 (same charge); slope ratio a*tau_rr/Irr = 0.52
+   abrupt-commutation estimates: tau*IF = 38169.0 uC against Qrr = 3200 uC (Qrr/IF = 3.20 us against tau = 38.17 us); limit of the model for a very fast commutation: Irr = IF*tau/TM = 1914 A, Qrr = IF*(tau - tau_rr) = 25069.0 uC
+   inductive commutation without snubber and capacitance, L = VR/a = 20 uH: peak reverse voltage VR*(1 + 2/s) = 291 V, energy VR*Qrr = 320.00 mJ
+   inverse maps from (Irr, t_rr line) and from (Qrr, t_rr at 10 %): tau = 38.169 and 38.169 us, TM = 19.945 and 19.945 us
+   logarithmic sensitivities of the exact conversion (rows tau, TM, tau_rr; columns Qrr, Irr, a, IF):
+     tau      +0.678   -0.346   -0.322   -0.010
+     TM       +2.621   -4.247   +1.621   +0.005
+     tau_rr   +1.954   -2.908   +0.954   +0.000
+   peak current higher by 5 % at the same charge: tau -1.6 %, TM -19.4 %, tau_rr -14.1 %
+   test cell: L = VR/a = 20 uH, snubber 10 Ohm + 470 nF, Cj0 = 20 nF, Rr = 90 kOhm
+   slope at the current zero 5.04 A/us (+0.79 % on VR/L, forward voltage)
+   peak reverse current: closed form at that slope 125.97 A; simulation, diffusion part 125.84 A (-0.11 %), at the terminals 126.12 A (+0.11 %)
+   charge down to 2 % of the peak: closed form 3191.760 uC; simulation, diffusion part 3195.061 uC (+0.10 %), at the terminals 3195.419 uC (+0.11 %); charge of the junction capacitance up to VR: 0.3078 uC (0.01 % of Qrr)
+   recovery time by the line through 90 % and 25 %: closed form 49.61 us, simulation 49.62 us (+0.02 %)
+   peak reverse voltage 289 V; energy in the diode after the current zero 310.220 mJ, in the snubber resistor 15.059 mJ, sum 325.278 mJ; balance VR*Qrr + Csn*VR^2/2 = 322.477 + 2.350 = 324.827 mJ (+0.14 %)
+   model away from the datasheet point (slope in A/us, IF in A, Irr in A, Qrr in uC):
+     a =      0.5, IF =   1000: Irr =   12.535, Qrr =   321.316, T1/tau = 53.06; datasheet curve 1604 uC (model/curve = 0.20)
+       curve point converted with the same softness: Irr = 28.0 A, tau = 85.3, TM = 44.7
+     a =      2.5, IF =   1000: Irr =   62.672, Qrr =  1606.546, T1/tau = 11.14; datasheet curve 2599 uC (model/curve = 0.62)
+       curve point converted with the same softness: Irr = 79.7 A, tau = 48.6, TM = 25.4
+     a =        5, IF =   1000: Irr =  125.000, Qrr =  3200.000, T1/tau = 5.89; datasheet curve 3200 uC (model/curve = 1.00)
+       curve point converted with the same softness: Irr = 125.0 A, tau = 38.2, TM = 19.9
+     a =       10, IF =   1000: Irr =  240.982, Qrr =  6060.497, T1/tau = 3.25; datasheet curve 3940 uC (model/curve = 1.54)
+       curve point converted with the same softness: Irr = 196.1 A, tau = 30.3, TM = 15.6
+     a =       50, IF =   1000: Irr =  753.271, Qrr = 15542.033, T1/tau = 0.92; datasheet curve 6385 uC (model/curve = 2.43)
+       curve point converted with the same softness: Irr = 558.4 A, tau = 20.0, TM = 8.3
+     a =        5, IF =    500: Irr =  120.491, Qrr =  3030.248, T1/tau = 3.25
+     a =        5, IF =   1000: Irr =  125.000, Qrr =  3200.000, T1/tau = 5.89
+     a =        5, IF =   2000: Irr =  125.343, Qrr =  3213.093, T1/tau = 11.14
+   at 100 C with tau and TM scaled by the ratio of the absolute temperatures (0.882, assumed): tau = 33.7 us, TM = 17.6 us; at the datasheet slope and current Irr = 110.4 A (-12 %), Qrr = 2494 uC (-22 %)
+   half sine of 10 ms with 5 A/us at the zero (peak 15915 A): w*tau = 0.0120, Irr = 125.34 A (-0.01 % on a*(tau - tau_rr) = 125.35 A)
+   half sine of 1 ms with 5 A/us at the zero (peak 1592 A): w*tau = 0.1199, Irr = 124.35 A (-0.80 % on a*(tau - tau_rr) = 125.35 A)
+
+3. Diode B: fast diode, short ramp
+   recovery data: IF = 100 A, a = 1000 A/us, Irr = 80 A, Qrr = 12 uC, VR = 600 V, T = 125 C
+   ta = Irr/a = 80.00 ns; triangle charge Irr*ta/2 = 3.20 uC (27 % of Qrr); tail time constant tau_rr = 110.00 ns; softness s = 2.750
+   exact conversion (35 iterations): tau = 277.72 ns, TM = 182.14 ns, rho = 0.396, IF/(a*tau) = 0.360, T1/tau = 0.648, F = 0.4770
+   long-ramp closed form: tau = 190.00 ns (-31.6 %), TM = 261.25 ns (+43.4 %); this set returns Irr = 42.14 A (-47.3 %), Qrr = 5.52 uC (-54.0 %) at the datasheet point
+   exact set back at the datasheet point: Irr = 80.0000 A, Qrr = 12.0000 uC; step-by-step integration of the charge equations: Irr = 80.0000 A, Qrr = 12.0000 uC
+   charge stored at the current zero: 23.3 uC (tau*IF = 27.8 uC); recovered 51 % of it
+   if the datasheet charge is integrated down to 2 % of Irr: tau_rr = 112.24 ns, tau = 281.66 ns, TM = 186.61 ns
+   local exponents of the model at the datasheet point: Irr ~ a^0.42 IF^0.58, Qrr ~ a^0.27 IF^0.73
+   forward characteristic through 1.18 V at 25 A, 1.4 V at 50 A, 1.8 V at 100 A: n = 1.682, RS = 7.200 mOhm, IS = 7.451e-07 A (VT = 34.31 mV); straight line through the two upper points: VT0 = 1.00 V, rT = 8.0 mOhm
+   leakage at the rated point: Rr = 1.2 MOhm; charge of the junction capacitance up to VR = 600 V: 39.6 nC
+   base width that corresponds to TM with D = 13 cm2/s: 53 um (parabolic profile), 48 um (slowest mode), 57 um (static profile, d/L = 1.50); diffusion length 19 um
+   recovery time: line through 90 % and 25 %: 286.7 ns; instant at 10 %: 333.3 ns (stretch factor 4.17); triangle with the same charge 2*Qrr/Irr: 300.0 ns
+   fall time over rise time: 2.58 (line), 2.75 (same charge); slope ratio a*tau_rr/Irr = 1.37
+   abrupt-commutation estimates: tau*IF = 27.8 uC against Qrr = 12 uC (Qrr/IF = 120.00 ns against tau = 277.72 ns); limit of the model for a very fast commutation: Irr = IF*tau/TM = 152 A, Qrr = IF*(tau - tau_rr) = 16.8 uC
+   inductive commutation without snubber and capacitance, L = VR/a = 0.6 uH: peak reverse voltage VR*(1 + 2/s) = 1036 V, energy VR*Qrr = 7.20 mJ
+   inverse maps from (Irr, t_rr line) and from (Qrr, t_rr at 10 %): tau = 277.724 and 277.724 ns, TM = 182.142 and 182.142 ns
+   logarithmic sensitivities of the exact conversion (rows tau, TM, tau_rr; columns Qrr, Irr, a, IF):
+     tau      +0.946   -0.475   -0.054   -0.418
+     TM       +1.637   -2.549   +0.637   +0.274
+     tau_rr   +1.364   -1.727   +0.364   +0.000
+   peak current higher by 5 % at the same charge: tau -2.2 %, TM -11.9 %, tau_rr -8.3 %
+   test cell: L = VR/a = 0.6 uH, snubber 5.6 Ohm + 22 nF, Cj0 = 1 nF, Rr = 1200 kOhm
+   slope at the current zero 1001 A/us (+0.11 % on VR/L, forward voltage)
+   peak reverse current: closed form at that slope 80.04 A; simulation, diffusion part 79.69 A (-0.43 %), at the terminals 81.25 A (+1.51 %)
+   charge down to 2 % of the peak: closed form 11.827 uC; simulation, diffusion part 11.828 uC (+0.00 %), at the terminals 11.864 uC (+0.31 %); charge of the junction capacitance up to VR: 0.0396 uC (0.33 % of Qrr)
+   recovery time by the line through 90 % and 25 %: closed form 286.64 ns, simulation 284.99 ns (-0.57 %)
+   peak reverse voltage 927 V; energy in the diode after the current zero 4.753 mJ, in the snubber resistor 6.454 mJ, sum 11.208 mJ; balance VR*Qrr + Csn*VR^2/2 = 7.202 + 3.960 = 11.162 mJ (+0.41 %)
+   model away from the datasheet point (slope in A/us, IF in A, Irr in A, Qrr in uC):
+     a =      500, IF =    100: Irr =   56.737, Qrr =     9.460, T1/tau = 1.13
+     a =    1e+03, IF =    100: Irr =   80.000, Qrr =    12.000, T1/tau = 0.65
+     a =    2e+03, IF =    100: Irr =  102.467, Qrr =    13.896, T1/tau = 0.36
+     a =    1e+03, IF =     50: Irr =   51.234, Qrr =     6.948, T1/tau = 0.36
+     a =    1e+03, IF =    100: Irr =   80.000, Qrr =    12.000, T1/tau = 0.65
+     a =    1e+03, IF =    200: Irr =  113.474, Qrr =    18.920, T1/tau = 1.13
+   at 25 C from Irr = 55 A, Qrr = 6 uC: tau_rr = 81.6 ns, tau = 175.3 ns (-37 %), TM = 152.6 ns (-16 %)
+   equivalent exponent of the lifetime against the absolute temperature: 1.59
+   resistive test, IF = 0.5 A, IR = 1 A, read at 0.25 A: IF/IR = 0.5 against TM/tau = 0.656; storage time 0.0 ns, current at the start of the tail 0.762 A, time to 0.25 A: 123 ns, charge 83.9 nC
+   same test with IF = 2 A: storage time 165 ns, time to 0.25 A 318 ns
+

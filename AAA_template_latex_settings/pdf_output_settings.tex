@@ -1,0 +1,47 @@
+\documentclass{article}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+	basicstyle=\ttfamily\small,
+	backgroundcolor=\color{gray!10},
+	frame=single,
+	breaklines=true
+}
+
+\begin{document}
+	
+	\section*{Per-project PDF output directory in TeXstudio (Windows)}
+	
+	\subsection*{1. Create the batch script}
+	
+	Create a file named \texttt{compile.bat} in the project directory with the following content:
+	
+	\begin{lstlisting}[language=bash]
+		@echo off
+		pdflatex -synctex=1 -interaction=nonstopmode ^
+		-output-directory="C:/Git/GitHub/library/library/documentation/modularity" %1
+	\end{lstlisting}
+	
+	\subsection*{2. Configure TeXstudio}
+	
+	Go to \textbf{Options} $\to$ \textbf{Configure TeXstudio} $\to$ \textbf{Build} $\to$ \textbf{Commands} $\to$ \textbf{PdfLaTeX} and set:
+	
+	\begin{lstlisting}
+		pdflatex.exe -synctex=1 -interaction=nonstopmode
+		-output-directory="C:/Git/GitHub/library/library/documentation/modularity" "%"
+	\end{lstlisting}
+	
+	\subsection*{Notes}
+	
+	\begin{itemize}
+		\item The output directory must exist before compilation. \texttt{pdflatex} does not create it automatically.
+		\item Auxiliary files (\texttt{.aux}, \texttt{.log}, \texttt{.toc}, etc.) are also written to the output directory.
+		\item The setting in \textbf{Commands} applies globally to all projects. For per-project configuration, use the \texttt{.bat} script and point the \textbf{PdfLaTeX} command to it:
+	\end{itemize}
+	
+	\begin{lstlisting}
+		"C:/path/to/project/compile.bat" "%"
+	\end{lstlisting}
+	
+\end{document}

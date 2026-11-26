@@ -1,0 +1,650 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[siunitx]{circuitikz}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\sisetup{per-mode=symbol, detect-weight=true}
+
+\title{GTO and IGCT Thyristors\\[2mm]
+\large Device Principles, Switching Behaviour and Gate Driver Design}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+%======================================================================
+\chapter{Introduction}
+%======================================================================
+
+The gate turn-off thyristor (GTO) and its direct descendant, the integrated
+gate-commutated thyristor (IGCT), are the highest-power fully controllable
+semiconductor switches available in a single die. They occupy the region of the
+power-electronics landscape above the reach of a single IGBT module: blocking
+voltages of \SIrange{4.5}{10}{\kilo\volt} and controllable turn-off currents of
+several kiloamperes, at the cost of a switching frequency limited to a few
+hundred hertz \cite{bernet2000,rodriguez2007multilevel}.
+
+Both devices are four-layer, latching, bipolar structures. Their distinguishing
+feature with respect to the conventional phase-control thyristor is the ability
+to interrupt the anode current by extracting the stored charge through the gate
+terminal. What separates the GTO from the IGCT is not the silicon alone but the
+way in which that extraction is performed --- and therefore the gate driver.
+The IGCT is, by definition, a gate-commutated thyristor (GCT) sold together with
+its gate unit; the gate unit is part of the device, not an accessory
+\cite{klaka1997igct,carroll1997igct}.
+
+For this reason the gate driver is treated here as a full chapter
+(Chapter~\ref{ch:gatedriver}) rather than as an application note. The design of
+the gate unit determines the maximum controllable current, the failure mode, the
+need for a turn-off snubber and, ultimately, the cost and volume of the whole
+converter.
+
+\section{Scope of the document}
+
+Chapter~\ref{ch:devices} describes the structure and the physical operating
+principle of the GTO and of the GCT/IGCT. Chapter~\ref{ch:characteristics}
+covers static and dynamic characteristics, losses and safe operating area.
+Chapter~\ref{ch:gatedriver} is dedicated to the gate driver: requirements,
+topologies, sizing equations, layout, auxiliary power supply, monitoring and
+protection, with a worked numerical example. Chapter~\ref{ch:applications}
+summarises typical applications and compares the devices with high-voltage
+IGBTs. Numerical values quoted throughout the text are representative orders of
+magnitude; the data sheet of the specific device always takes precedence.
+
+%======================================================================
+\chapter{Device Structure and Operating Principle}
+\label{ch:devices}
+%======================================================================
+
+\section{The four-layer structure}
+
+Both devices are built on the classical $p^{+}npn^{+}$ thyristor structure,
+usually described as two coupled bipolar transistors: a wide-base $pnp$
+transistor (anode emitter, $n$-base, $p$-base) and a narrow-base $npn$
+transistor (cathode emitter, $p$-base, $n$-base). The gate contacts the $p$-base.
+Denoting by $\alpha_{pnp}$ and $\alpha_{npn}$ the common-base current gains, the
+anode current is
+
+\begin{equation}
+I_{A} = \frac{\alpha_{npn} I_{G} + I_{leak}}{1 - (\alpha_{pnp} + \alpha_{npn})},
+\end{equation}
+
+so the structure latches when $\alpha_{pnp} + \alpha_{npn} \rightarrow 1$
+\cite{baliga2008,lutz2011}. In the on state, high-level injection floods the
+$n$-base with electron--hole plasma, which is the origin of the very low on-state
+voltage drop of these devices and, at the same time, of their slow turn-off.
+
+\section{The GTO thyristor}
+
+\subsection{Cathode segmentation}
+
+To turn the device off, the $npn$ transistor must be desaturated by removing
+holes from the $p$-base through the gate. Since holes must travel laterally
+under the cathode emitter, the cathode is not a single area but is divided into
+several thousand narrow fingers (typically \SIrange{100}{300}{\micro\metre}
+wide) interdigitated with the gate metallisation and connected in parallel. This
+segmentation limits the lateral distance that carriers have to travel and makes
+turn-off possible at all.
+
+\subsection{Turn-off gain and current filamentation}
+
+In a conventional GTO the negative gate current is significantly smaller than
+the anode current. The turn-off gain
+
+\begin{equation}
+\beta_{off} = \frac{I_{TGQ}}{|I_{G,peak}|} \approx \frac{\alpha_{npn}}{\alpha_{pnp} + \alpha_{npn} - 1}
+\end{equation}
+
+is typically in the range \numrange{3}{5}. The device therefore turns off
+\emph{in thyristor mode}: for a storage time of the order of
+\SIrange{10}{25}{\micro\second} the structure remains regenerative while the
+plasma is progressively squeezed. Because the individual cathode fingers are not
+perfectly identical, the conducting area shrinks non-uniformly and the residual
+current concentrates in a few fingers --- current filamentation --- which is the
+dominant failure mechanism at turn-off. The maximum controllable turn-off
+current $I_{TGQM}$ is set by this mechanism, not by thermal limits.
+
+\subsection{Consequences: snubbers and minimum times}
+
+Two practical consequences follow:
+
+\begin{itemize}[nosep]
+  \item A \emph{turn-off (dv/dt) snubber} is mandatory. A polarised RCD snubber
+        with a capacitor of typically \SIrange{3}{6}{\micro\farad} for a
+        \SI{4.5}{\kilo\volt}/\SI{3}{\kilo\ampere} device holds the anode voltage
+        low while the current is still being commutated, keeping the device out
+        of the filamentation region. The snubber is bulky, lossy and expensive:
+        its dissipation, $\tfrac{1}{2}C V_{DC}^{2} f_{sw}$, often dominates the
+        converter loss budget.
+  \item \emph{Minimum on-time and minimum off-time} of the order of
+        \SIrange{10}{100}{\micro\second} must be enforced by the control, because
+        the plasma distribution must be allowed to settle before the opposite
+        transition. This constrains the modulation strategy and effectively
+        limits $f_{sw}$ to a few hundred hertz.
+\end{itemize}
+
+\subsection{Anode side variants}
+
+Three anode-side arrangements are common: \emph{symmetric} (reverse blocking,
+thick $n$-base, high on-state drop), \emph{asymmetric} (an $n$-buffer layer plus
+anode shorts, thinner base, lower drop, but no reverse blocking capability, used
+with an antiparallel diode in voltage-source converters), and \emph{reverse
+conducting} (RC), where the freewheeling diode is integrated on the same wafer.
+
+\section{The GCT and the IGCT}
+
+\subsection{Hard drive: unity turn-off gain}
+
+The GCT is a GTO whose gate is driven \emph{hard}: the gate unit sinks the entire
+anode current, $\beta_{off} \approx 1$, in less than about one microsecond
+\cite{gruening1996harddrive,klaka1997igct}. The whole cathode current is
+commutated from the cathode into the gate \emph{before} the anode voltage starts
+to rise. The $npn$ transistor is then completely cut off and the device
+finishes turning off as an \emph{open-base $pnp$ transistor}: the structure is no
+longer regenerative, so there is no plasma pinching and no filamentation.
+
+The essential requirement is therefore not a large gate charge but a very high
+gate-current slope. Since
+
+\begin{equation}
+\frac{\mathrm{d}i_{G}}{\mathrm{d}t} = \frac{V_{GK}}{L_{\sigma}},
+\label{eq:didt}
+\end{equation}
+
+with the gate--cathode reverse voltage $V_{GK}$ limited to about
+\SI{20}{\volt} by the avalanche breakdown of the gate--cathode junction, the
+only remaining degree of freedom is the loop inductance $L_{\sigma}$. Achieving
+\SIrange{6}{10}{\kilo\ampere\per\micro\second} requires $L_{\sigma}$ of a few
+nanohenries, which is impossible with a cabled gate connection. Hence the
+\emph{integration} of the gate unit with the device: the IGCT is a GCT plus a
+coaxially bonded, multilayer-PCB gate unit.
+
+\subsection{Silicon improvements}
+
+The hard-drive concept is combined with several device-level improvements
+\cite{steimer1999igct,lutz2011}:
+
+\begin{itemize}[nosep]
+  \item \emph{Transparent anode emitter}: a thin, lightly doped $p$ emitter whose
+        injection efficiency depends on current density, replacing anode shorts;
+        it reduces the tail current and improves the on-state/turn-off trade-off.
+  \item \emph{Buffer layer} ($n$ field stop): allows a thinner $n$-base for a
+        given blocking voltage, hence lower on-state voltage and lower stored
+        charge.
+  \item \emph{Free-floating silicon} in a press-pack housing: double-sided
+        cooling, high thermal cycling capability, and the important property that
+        the device fails as a stable short circuit (short-circuit failure mode,
+        SCFM), which allows series connection with $n+1$ redundancy.
+  \item \emph{Reverse-conducting} (RC-IGCT) and \emph{reverse-blocking}
+        (RB-IGCT) variants, the latter used in current-source converters
+        \cite{weber2000rbigct}.
+\end{itemize}
+
+\subsection{Snubberless operation}
+
+Because turn-off is homogeneous, the RCD turn-off snubber can be removed. What
+remains is a \emph{di/dt clamp}: a saturable or air-core inductor of a few
+microhenries in the DC link branch, with its own freewheeling path, which limits
+the turn-on current slope of the IGCT and the reverse recovery stress of the
+opposing diode to about \SI{1}{\kilo\ampere\per\micro\second}. This is a single
+component shared by a whole phase leg, in contrast with one snubber per switch.
+
+\begin{figure}[htbp]
+\centering
+\begin{circuitikz}[scale=0.85, transform shape]
+  % DC link source
+  \draw (0,0) to[V, l=$V_{DC}$, invert] (0,4.5);
+  \draw (0,4.5) -- (2,4.5);
+  % di/dt limiting inductor in the positive rail
+  \draw (2,4.5) to[L, l=$L_{cl}$] (5,4.5);
+  % clamp network across the inductor
+  \draw (2,4.5) -- (2,6) to[C, l=$C_{cl}$] (4,6) to[D*, l=$D_{cl}$] (5.5,6) -- (5.5,4.5);
+  \draw (2,6) -- (2,7.2) to[R, l=$R_{cl}$] (4,7.2) -- (4,6);
+  % main switch
+  \draw (5,4.5) -- (5,4) to[thyristor, l_=IGCT] (5,2.5);
+  % freewheeling diode
+  \draw (5,2.5) -- (6.8,2.5) to[D*, l_=$D_{fw}$] (6.8,0) ;
+  % load
+  \draw (6.8,2.5) -- (8.8,2.5) to[L, l_=load] (8.8,0);
+  % negative rail
+  \draw (0,0) -- (8.8,0);
+\end{circuitikz}
+\caption{Simplified snubberless IGCT phase leg with $\mathrm{d}i/\mathrm{d}t$
+clamp circuit ($L_{cl}$, $D_{cl}$, $C_{cl}$, $R_{cl}$). No individual RCD
+turn-off snubber is required.}
+\label{fig:clamp}
+\end{figure}
+
+%======================================================================
+\chapter{Static and Dynamic Characteristics}
+\label{ch:characteristics}
+%======================================================================
+
+\section{On-state and conduction losses}
+
+In the on state the device behaves as a $p$-$i$-$n$ diode in series with a
+junction. For loss calculation the usual piecewise-linear model is adequate:
+
+\begin{equation}
+v_{T}(i_{T}) = V_{T0} + r_{T}\, i_{T},
+\qquad
+P_{cond} = V_{T0}\, I_{T,avg} + r_{T}\, I_{T,rms}^{2}.
+\end{equation}
+
+Typical values for a \SI{4.5}{\kilo\volt} device at rated current are
+$V_{T0}\approx\SIrange{1.2}{1.7}{\volt}$ and a total on-state drop of
+\SIrange{2}{3}{\volt} at several kiloamperes --- markedly lower than an IGBT of
+the same blocking class, and the main reason these devices survive in very high
+power converters.
+
+\section{Turn-on}
+
+Turn-on is initiated by a positive gate pulse. Because the plasma spreads
+laterally from the gate fingers at a finite velocity, the critical rate of rise
+of on-state current $\mathrm{d}i/\mathrm{d}t$ must be limited externally; the
+clamp inductor of Fig.~\ref{fig:clamp} performs this function. A hard, high
+$\mathrm{d}i_{G}/\mathrm{d}t$ turn-on pulse improves the initial conducting area
+and reduces turn-on losses and localised heating.
+
+\section{Turn-off}
+
+The turn-off waveform is conventionally divided into:
+
+\begin{description}[nosep]
+  \item[Storage time $t_{s}$] from the gate turn-off command to the beginning of
+        the anode voltage rise. \SIrange{10}{25}{\micro\second} for a GTO, of the
+        order of \SI{1}{\micro\second} for an IGCT, and much less dispersed in
+        the latter case --- which is what makes series connection practical.
+  \item[Fall time $t_{f}$] rapid collapse of the anode current, typically
+        \SIrange{1}{2}{\micro\second}.
+  \item[Tail current] slow recombination of the residual charge in the $n$-base,
+        lasting several microseconds and contributing a substantial part of the
+        turn-off energy, since it flows at full DC-link voltage.
+\end{description}
+
+The turn-off energy is obtained by integration over the whole transient:
+
+\begin{equation}
+E_{off} = \int_{t_{0}}^{t_{1}} v_{AK}(t)\, i_{A}(t)\, \mathrm{d}t .
+\end{equation}
+
+\section{Safe operating area and limits}
+
+Three distinct limits must be respected: the maximum controllable turn-off
+current $I_{TGQM}$ (filamentation limit, strongly gate-unit dependent), the RBSOA
+in the voltage--current plane during turn-off, and the maximum junction
+temperature. In addition, cosmic-ray induced single-event burnout imposes a
+derating of the DC-link voltage with respect to the rated blocking voltage,
+usually to \SIrange{50}{60}{\percent} of $V_{DRM}$ \cite{abb5sya2033}.
+
+\section{Comparison}
+
+\begin{table}[htbp]
+\centering
+\caption{Representative comparison of GTO, IGCT and HV-IGBT.}
+\label{tab:compare}
+\begin{tabular}{lccc}
+\toprule
+ & \textbf{GTO} & \textbf{IGCT} & \textbf{HV-IGBT} \\
+\midrule
+Blocking voltage        & \SIrange{4.5}{6}{\kilo\volt} & \SIrange{4.5}{10}{\kilo\volt} & \SIrange{3.3}{6.5}{\kilo\volt} \\
+Turn-off current        & \SIrange{3}{6}{\kilo\ampere} & \SIrange{3}{6}{\kilo\ampere}  & \SIrange{0.6}{1.5}{\kilo\ampere} \\
+Turn-off gain           & \numrange{3}{5}              & $\approx 1$                   & voltage driven \\
+Storage time            & \SIrange{10}{25}{\micro\second} & $\approx\SI{1}{\micro\second}$ & --- \\
+Turn-off snubber        & required                     & not required                  & not required \\
+On-state drop           & low                          & low                           & higher \\
+Typical $f_{sw}$        & \SIrange{200}{500}{\hertz}   & \SIrange{0.5}{1}{\kilo\hertz} & \SIrange{1}{2}{\kilo\hertz} \\
+Gate drive power        & high                         & high                          & low \\
+Failure mode            & short circuit (press-pack)   & short circuit (press-pack)    & module: open/rupture \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%======================================================================
+\chapter{Gate Driver Design}
+\label{ch:gatedriver}
+%======================================================================
+
+\section{Why the gate unit defines the device}
+
+For a MOSFET or an IGBT the gate driver delivers a charge of the order of
+microcoulombs and its main design problems are speed, isolation and noise
+immunity. For a GTO or a GCT the gate unit is a \emph{power converter in its own
+right}: it must sink kiloamperes for microseconds, with a current slope of
+kiloamperes per microsecond, from a low-voltage rail, tens or hundreds of times
+per second. The gate unit therefore determines:
+
+\begin{itemize}[nosep]
+  \item the maximum controllable turn-off current;
+  \item whether a turn-off snubber is needed;
+  \item the spread of the storage time, and hence the feasibility of series
+        connection;
+  \item a non-negligible share of the converter losses and volume.
+\end{itemize}
+
+This is why an IGCT is delivered as an inseparable assembly of GCT wafer,
+press-pack housing and gate unit \cite{carroll1997igct,abb5sya2032}.
+
+\section{Functional requirements}
+
+A complete gate unit must provide the following functions.
+
+\begin{enumerate}[nosep]
+  \item \textbf{Turn-on pulse}: a positive gate current pulse with high
+        $\mathrm{d}i_{G}/\mathrm{d}t$ and a peak of tens of amperes (GTO) to a few
+        hundred amperes (GCT), lasting a few microseconds, to ignite as much
+        cathode area as possible simultaneously.
+  \item \textbf{Back-porch (on-state) current}: a continuous positive gate
+        current maintained for the whole conduction interval, from a few amperes
+        to a few tens of amperes depending on device size. It prevents partial
+        de-latching at low anode current and improves $\mathrm{d}i/\mathrm{d}t$
+        robustness.
+  \item \textbf{Turn-off pulse}: a negative gate current whose amplitude equals
+        the anode current (GCT) or a fraction of it (GTO), with the highest
+        achievable slope.
+  \item \textbf{Reverse bias hold}: a sustained negative gate--cathode voltage
+        during the whole off interval, to keep the $npn$ emitter junction
+        reverse biased and prevent spurious re-triggering by $\mathrm{d}v/\mathrm{d}t$.
+  \item \textbf{Auxiliary supply}: isolated for the full converter voltage, and
+        able to deliver the average gate power.
+  \item \textbf{Command interface}: optical, with low and reproducible
+        propagation delay.
+  \item \textbf{Monitoring and protection}: supply undervoltage lockout, minimum
+        on/off time enforcement, status feedback to the controller.
+\end{enumerate}
+
+\section{Sizing the turn-off stage}
+
+\subsection{Loop inductance}
+
+Equation~\eqref{eq:didt} is the central design equation. With $V_{GK}$ fixed by
+the gate--cathode avalanche voltage (about \SIrange{20}{22}{\volt}), the required
+slope maps directly onto a maximum admissible loop inductance:
+
+\begin{equation}
+L_{\sigma,max} = \frac{V_{GK}}{\left(\mathrm{d}i_{G}/\mathrm{d}t\right)_{req}} .
+\end{equation}
+
+For $V_{GK}=\SI{20}{\volt}$ and
+$\mathrm{d}i_{G}/\mathrm{d}t=\SI{6}{\kilo\ampere\per\micro\second}$ this gives
+$L_{\sigma,max}\approx\SI{3.3}{\nano\henry}$. Every element of the loop --- the
+capacitor bank ESL, the MOSFET package inductance, the PCB planes, the contact to
+the gate ring --- must be budgeted against this figure. In a GTO gate unit, where
+$\beta_{off}\approx4$ is accepted, a loop inductance of a few hundred nanohenries
+gives \SIrange{30}{40}{\ampere\per\micro\second}, which is the practical
+difference between the two technologies.
+
+\begin{figure}[htbp]
+\centering
+\begin{circuitikz}[scale=0.9, transform shape]
+  \draw (0,0) to[V, l=$V_{GK}$, invert] (0,3);
+  \draw (0,3) to[C, l=$C_{bank}$] (2.2,3);
+  \draw (2.2,3) to[R, l=$R_{on}$, a=MOSFET bank] (5,3);
+  \draw (5,3) to[L, l=$L_{\sigma}$] (7.2,3);
+  \draw (7.2,3) -- (8.6,3) node[above right,font=\small]{gate} -- (8.6,2.2);
+  \draw (8.6,2.2) to[thyristor, l=GCT] (8.6,-1.0);
+  \draw (8.6,-1.0) node[below right,font=\small]{cathode} -- (0,-1.0) -- (0,0);
+\end{circuitikz}
+\caption{Equivalent circuit of the IGCT turn-off loop. The current slope is set
+by $V_{GK}/L_{\sigma}$; the capacitor bank must supply the full anode current
+with negligible voltage sag.}
+\label{fig:loop}
+\end{figure}
+
+\subsection{Capacitor bank}
+
+During turn-off the bank supplies the charge extracted from the device. For a
+triangular gate-current pulse rising to $I_{TGQ}$ at slope $S$, the commutation
+time is $t_{c}=I_{TGQ}/S$ and the charge is
+
+\begin{equation}
+Q = \tfrac{1}{2}\, I_{TGQ}\, t_{c} = \frac{I_{TGQ}^{2}}{2S},
+\qquad
+C_{bank} \ge \frac{Q}{\Delta V_{acc}} ,
+\end{equation}
+
+where $\Delta V_{acc}$ is the voltage sag that can be tolerated without
+degrading the slope (typically \SIrange{5}{10}{\percent} of $V_{GK}$). The bank
+is realised as a large parallel combination of low-ESL electrolytic and film or
+ceramic capacitors distributed around the gate ring, so that the ESL of the bank
+adds in parallel and the inductance budget is met.
+
+\subsection{Switch bank}
+
+The turn-off switch is a parallel array of low-voltage ($\approx\SI{30}{\volt}$),
+low-$R_{DS(on)}$ MOSFETs --- typically several tens of devices --- arranged
+symmetrically around the gate ring. The number $N$ follows from two constraints:
+
+\begin{equation}
+N \ge \frac{I_{TGQ}}{I_{D,pulse}},
+\qquad
+N \ge \frac{R_{DS(on)}\, I_{TGQ}}{\Delta V_{R}},
+\end{equation}
+
+the second ensuring that the resistive drop $\Delta V_{R}$ does not eat
+significantly into the \SI{20}{\volt} available for the $\mathrm{d}i/\mathrm{d}t$.
+Symmetry matters as much as the count: an asymmetric layout produces unequal
+sharing and local overheating, and increases the effective loop inductance.
+
+\subsection{Worked example}
+
+Consider a \SI{4.5}{\kilo\volt} GCT with $I_{TGQ}=\SI{4}{\kilo\ampere}$,
+$V_{GK}=\SI{20}{\volt}$ and a required
+$S=\SI{6}{\kilo\ampere\per\micro\second}$.
+
+\begin{itemize}[nosep]
+  \item Loop inductance: $L_{\sigma}\le 20/6\times10^{9}=\SI{3.3}{\nano\henry}$.
+  \item Commutation time: $t_{c}=4000/6\times10^{9}=\SI{0.67}{\micro\second}$.
+  \item Extracted charge: $Q=\tfrac12\cdot4000\cdot0.67\times10^{-6}\approx\SI{1.3}{\milli\coulomb}$.
+  \item Capacitor bank for $\Delta V_{acc}=\SI{2}{\volt}$:
+        $C_{bank}\ge 1.3\times10^{-3}/2 \approx \SI{670}{\micro\farad}$.
+  \item MOSFET count with $I_{D,pulse}=\SI{100}{\ampere}$ per device:
+        $N\ge 40$; choosing $N=60$ with $R_{DS(on)}=\SI{4}{\milli\ohm}$ gives a
+        bank resistance of \SI{67}{\micro\ohm} and $\Delta V_{R}=\SI{0.27}{\volt}$,
+        which is negligible.
+  \item Energy drawn from the bank per turn-off:
+        $E \approx \tfrac12 L_{\sigma} I_{TGQ}^{2} + Q\,V_{GK}
+        \approx \SI{26}{\milli\joule} + \SI{26}{\milli\joule}$, so at
+        \SI{500}{\hertz} the turn-off contribution to the gate-unit power is of
+        the order of a few tens of watts.
+\end{itemize}
+
+The result --- a few nanohenries, hundreds of microfarads, tens of MOSFETs ---
+explains the physical form of an IGCT gate unit: an annular, multilayer printed
+circuit board of \SIrange{15}{25}{\centi\metre} diameter, bolted concentrically
+to the press-pack gate ring, with the return path immediately underneath the
+outgoing path.
+
+\section{The GTO gate unit}
+
+Because the GTO operates with $\beta_{off}>1$, the switch and capacitor bank are
+smaller, but three additional problems appear.
+
+\begin{enumerate}[nosep]
+  \item \textbf{Storage time control.} The long and dispersed storage time must
+        be accounted for in the dead-time of the modulator, and cannot be
+        compensated by the gate unit.
+  \item \textbf{Coordination with the snubber.} The turn-off snubber must be
+        correctly sized and low-inductance; the gate unit alone cannot guarantee
+        the RBSOA.
+  \item \textbf{Interlocks.} Minimum on-time and minimum off-time must be
+        enforced in hardware inside the gate unit, not only in the modulator,
+        because a violation during a fault sequence destroys the device.
+\end{enumerate}
+
+A classical GTO gate unit uses three separate paths sharing the gate terminal: a
+positive pulse path (charged capacitor plus switch and series inductor to shape
+the pulse), a back-porch path (a current-limited linear or switched source), and
+the negative path (bank plus MOSFET array) with a hold-off supply for the reverse
+bias.
+
+\begin{figure}[htbp]
+\centering
+\begin{circuitikz}[scale=0.85, transform shape]
+  % common cathode rail
+  \draw (-4,-1.8) -- (7.5,-1.8);
+  % turn-on branch
+  \draw (-4,-1.8) to[V, l=$+V_{on}$, invert] (-4,5.0);
+  \draw (-4,5.0) to[R, l=$R_{on}$] (-1.5,5.0) to[nos, l=$S_{on}$] (1.5,5.0);
+  % back-porch branch
+  \draw (-2.4,-1.8) to[V, l=$+V_{bp}$, invert] (-2.4,3.0);
+  \draw (-2.4,3.0) to[R, l=$R_{bp}$] (-0.6,3.0) to[nos, l=$S_{bp}$] (1.5,3.0);
+  % turn-off branch
+  \draw (-0.9,-1.8) to[V, l=$-V_{GK}$] (-0.9,1.0);
+  \draw (-0.9,1.0) to[C, l=$C_{bank}$] (0.4,1.0) to[nos, l=$S_{off}$] (1.5,1.0);
+  % common node towards the gate
+  \draw (1.5,5.0) -- (1.5,1.0);
+  \draw (1.5,1.0) to[L, l=$L_{\sigma}$] (4.6,1.0);
+  \draw (4.6,1.0) -- (6.0,1.0) node[above right,font=\small]{G} -- (6.0,0.4);
+  \draw (6.0,0.4) to[thyristor, l=GTO] (6.0,-1.8);
+\end{circuitikz}
+\caption{Conceptual three-path GTO gate unit: turn-on pulse, back-porch source
+and turn-off bank sharing the gate terminal.}
+\label{fig:gtogate}
+\end{figure}
+
+\section{Auxiliary power supply}
+
+The gate unit power consumption has three components:
+
+\begin{equation}
+P_{GU} = \underbrace{V_{bp} I_{bp} D}_{\text{back porch}}
+       + \underbrace{(E_{on}^{G} + E_{off}^{G}) f_{sw}}_{\text{switching}}
+       + \underbrace{P_{aux}}_{\text{logic, monitoring}} ,
+\end{equation}
+
+and typically ranges from a few tens of watts to a few hundred watts per device.
+Two supply strategies are used:
+
+\begin{itemize}[nosep]
+  \item An isolated DC/DC converter fed from a low-voltage bus through a
+        high-isolation transformer (partial discharge and creepage rated for the
+        full converter voltage, plus the transient $\mathrm{d}v/\mathrm{d}t$
+        common-mode stress of the switching leg).
+  \item Self-supply from the device itself, harvesting energy from the anode
+        voltage or from the clamp circuit during the off interval, with a
+        start-up path.
+\end{itemize}
+
+In both cases the gate unit stores enough energy locally to perform at least one
+safe turn-off after a supply failure, and signals the loss of supply to the
+controller.
+
+\section{Signal interface, isolation and synchronisation}
+
+The command is transmitted over plastic or glass optical fibre. Two requirements
+dominate:
+
+\begin{itemize}[nosep]
+  \item \textbf{Low and reproducible latency.} In series-connected stacks, the
+        jitter between gate units directly translates into unequal voltage
+        sharing during the transient. Fibre length matching and equal-latency
+        receivers are standard practice.
+  \item \textbf{Status feedback.} A return fibre reports supply status,
+        gate-unit readiness and, in advanced units, an indication derived from
+        the gate--cathode voltage that the device actually turned off. This
+        feedback is what allows a controller to detect a failed device in a
+        redundant series stack.
+\end{itemize}
+
+The common-mode transient immunity of the isolation barrier must be specified for
+the $\mathrm{d}v/\mathrm{d}t$ seen at the device terminals, which for an IGCT
+phase leg is of the order of \SIrange{1}{5}{\kilo\volt\per\micro\second}.
+
+\section{Layout guidelines}
+
+\begin{itemize}[nosep]
+  \item Build the gate unit as an annular multilayer PCB coaxial with the
+        press-pack; keep the go and return conductors on adjacent layers with
+        minimum dielectric thickness to minimise $L_{\sigma}$.
+  \item Distribute the capacitor bank and the MOSFETs uniformly around the ring;
+        each MOSFET should see nominally the same path length.
+  \item Keep the gate-unit ground reference tied to the device cathode, and treat
+        every measurement referenced to it as floating at full converter
+        potential.
+  \item Provide thermal management for the MOSFET bank and the bank ESR: at
+        several hundred hertz these components dissipate continuously.
+  \item Route the optical receivers and the logic supply away from the pulse
+        loop; the $\mathrm{d}i/\mathrm{d}t$ in the turn-off loop is the largest
+        interference source in the whole converter.
+\end{itemize}
+
+\section{Protection and interlocks}
+
+\begin{itemize}[nosep]
+  \item \textbf{Undervoltage lockout} on the gate-unit rails, with inhibition of
+        turn-on commands.
+  \item \textbf{Minimum on-time / minimum off-time} enforced in hardware.
+  \item \textbf{Turn-off inhibition window} during the storage phase, so that a
+        command reversal cannot interrupt an ongoing transition.
+  \item \textbf{Overcurrent handling.} A GCT cannot turn off an arbitrary fault
+        current: above $I_{TGQM}$ the device will fail. Short-circuit protection
+        is therefore performed at converter level (fault current limiting by the
+        clamp inductor, crowbar or fuse coordination), not by the gate unit
+        alone.
+  \item \textbf{Failure reporting} through the return fibre, allowing the
+        controller to trip the stack or, in redundant configurations, to continue
+        operating with the failed device shorted.
+\end{itemize}
+
+%======================================================================
+\chapter{Applications and Perspective}
+\label{ch:applications}
+%======================================================================
+
+\section{Typical applications}
+
+GTOs dominated high-power converters from the 1980s until the late 1990s, in
+traction drives, rolling mill drives and early FACTS equipment. IGCTs replaced
+them in most new designs from the late 1990s onwards
+\cite{steimer1998hardgto,bernet2000}. Present application areas include:
+
+\begin{itemize}[nosep]
+  \item Medium-voltage industrial drives, typically three-level neutral-point
+        clamped inverters in the \SIrange{1}{30}{\mega\watt} range
+        \cite{rodriguez2007multilevel,wu2006};
+  \item Marine propulsion and mine hoists;
+  \item Grid interfaces: STATCOM, back-to-back interties, wind-farm converters;
+  \item Pumped storage and large excitation systems;
+  \item DC circuit breakers and fault current limiters, where the very high
+        surge and turn-off current capability is decisive.
+\end{itemize}
+
+\section{Position with respect to IGBT and wide-bandgap devices}
+
+The high-voltage IGBT has taken over a large part of the medium-voltage market
+thanks to its simple voltage-controlled gate, higher switching frequency and
+mature module technology. The IGCT retains an advantage where conduction losses
+dominate, where the surge current capability and the short-circuit failure mode
+are required, and in press-pack series stacks. Wide-bandgap devices --- SiC
+MOSFETs and SiC IGBTs at \SIrange{3.3}{10}{\kilo\volt} --- are progressively
+addressing the same voltage classes with much higher switching frequency, but
+not yet with comparable single-die current ratings or surge capability.
+
+\section{Conclusion}
+
+The GTO and the IGCT differ far less in silicon than in the way the gate is
+driven. Hard drive --- unity turn-off gain achieved through a gate loop of a few
+nanohenries --- transforms a filamentation-limited, snubber-dependent switch into
+a homogeneous, snubberless one, with a storage time reduced by an order of
+magnitude and a dispersion low enough to allow series connection. Any design work
+on these devices is therefore, to a large extent, gate-unit design work: loop
+inductance budgeting, capacitor and switch bank sizing, auxiliary supply energy
+management, and interlock logic.
+
+%======================================================================
+\bibliographystyle{unsrt}
+\bibliography{gto_igct}
+
+\end{document}

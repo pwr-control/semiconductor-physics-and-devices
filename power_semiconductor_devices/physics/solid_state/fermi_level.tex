@@ -1,0 +1,168 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\usepackage{hyperref}
+
+\title{Derivation and Physical Meaning of the Fermi Level in Semiconductors}
+\author{Davide Bagnara}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Origin: Fermi--Dirac Statistics}
+
+The Fermi level emerges directly from quantum statistics applied to a system of indistinguishable fermions (electrons) subject to the Pauli exclusion principle. Consider a system of $N$ electrons in thermal equilibrium at temperature $T$, distributed among a set of available energy states.
+
+\subsection{Maximizing entropy under constraints}
+
+The equilibrium occupation probability of a state is obtained by maximizing the number of microstates $\Omega$ (equivalently, the entropy $S = k_B \ln \Omega$) subject to two constraints:
+\begin{align}
+\sum_i n_i &= N \quad \text{(fixed total number of particles)}, \\
+\sum_i n_i E_i &= U \quad \text{(fixed total energy)},
+\end{align}
+where $n_i \in \{0,1\}$ is the occupation of a single-particle state $i$ with energy $E_i$ (Pauli exclusion: at most one fermion per state, counting spin degeneracy separately).
+
+Using Lagrange multipliers $\alpha$ and $\beta$ for these two constraints and maximizing the combinatorial entropy of fermionic occupation, one obtains the Fermi--Dirac distribution:
+\begin{equation}
+f(E) = \frac{1}{e^{\alpha + \beta E} + 1}.
+\end{equation}
+
+Identifying the Lagrange multipliers thermodynamically ($\beta = 1/k_BT$, and $\alpha = -E_F/k_BT$) gives the familiar form:
+\begin{equation}
+\boxed{f(E) = \frac{1}{1 + \exp\!\left(\dfrac{E - E_F}{k_BT}\right)}}
+\end{equation}
+
+Here $E_F$ is precisely the Lagrange multiplier associated with the conservation of particle number. This is the key to its physical meaning: $E_F$ is not an "energy level" in the band-structure sense, but a \emph{thermodynamic parameter} conjugate to particle number.
+
+\subsection{Thermodynamic identification: the chemical potential}
+
+From statistical mechanics, the Lagrange multiplier tied to a conservation constraint on particle number is, by definition, the chemical potential $\mu$:
+\begin{equation}
+\mu = \left(\frac{\partial U}{\partial N}\right)_{S,V}.
+\end{equation}
+Therefore:
+\begin{equation}
+E_F \equiv \mu(T).
+\end{equation}
+At $T = 0\,\text{K}$, $\mu$ reduces to the energy of the highest occupied state in the system — the classic "Fermi energy" picture from the free-electron model. At finite $T$, $E_F$ is more precisely the electron \emph{electrochemical potential}: the energy at which the occupation probability is exactly $1/2$.
+
+\section{Physical Meaning}
+
+\subsection{$E_F$ is not a real energy state}
+In a semiconductor, $E_F$ frequently lies inside the forbidden gap, where no allowed electronic states exist. This is not a contradiction: $f(E)$ is a probability \emph{function} defined for all $E$, while the density of states $g(E)$ determines where carriers can actually be found. The carrier concentration is the product:
+\begin{equation}
+n(E)\,dE = g(E)\,f(E)\,dE.
+\end{equation}
+Inside the gap $g(E) = 0$, so no electrons physically sit "at" $E_F$ — yet $E_F$ still meaningfully sets the occupation statistics of the bands above and below it.
+
+\subsection{$E_F$ as electrochemical potential / "Fermi level of the system"}
+Because $E_F$ is a chemical potential, it obeys the same equilibrium principle as in classical thermodynamics: \emph{in any system at thermal and electrical equilibrium, with no net particle flow, the electrochemical potential must be uniform throughout the system.}
+
+This is precisely why, for two materials (or two differently doped regions of the same material) placed in contact and allowed to equilibrate with no applied bias and no net current, a single, spatially flat $E_F$ is established across the whole structure — as discussed for the pn junction. A non-flat $E_F$ would imply $dE_F/dx \neq 0$, which corresponds to a net particle flux (current), contradicting the equilibrium assumption.
+
+\subsection{Quantitative link to carrier concentration}
+
+For a non-degenerate semiconductor (Boltzmann approximation, valid when $E_F$ is several $k_BT$ away from the band edges), the electron and hole densities are:
+\begin{align}
+n &= N_C \exp\!\left(-\frac{E_C - E_F}{k_BT}\right), \\
+p &= N_V \exp\!\left(-\frac{E_F - E_V}{k_BT}\right),
+\end{align}
+where $N_C$, $N_V$ are the effective densities of states of the conduction and valence bands. These relations show explicitly how the position of $E_F$ within the gap controls the carrier population:
+\begin{itemize}
+\item $E_F$ close to $E_C$ $\Rightarrow$ large $n$ (n-type),
+\item $E_F$ close to $E_V$ $\Rightarrow$ large $p$ (p-type),
+\item $E_F$ near mid-gap $\Rightarrow$ $n \approx p \approx n_i$ (intrinsic-like).
+\end{itemize}
+
+The product $np = N_C N_V \exp(-E_g/k_BT) = n_i^2$ is independent of $E_F$ — this is the mass-action law, and it is the reason doping shifts $E_F$ rather than changing $n_i$.
+
+\subsection{Degenerate case}
+At very high doping ($N_D$ or $N_A \gtrsim 10^{19}\,\text{cm}^{-3}$ in silicon), $E_F$ approaches or crosses a band edge, the Boltzmann approximation breaks down, and the full Fermi--Dirac integral must be used. The material then behaves partly like a degenerate electron (or hole) gas, relevant e.g. for heavily doped contact/source regions in power devices.
+
+\section{Built-in Potential of the pn Junction}
+
+\subsection{Setup}
+Consider an abrupt pn junction formed by joining a uniformly doped n-type region ($N_D$) and a uniformly doped p-type region ($N_A$), both non-degenerate. Before contact, each region has its own flat Fermi level:
+\begin{align}
+E_C - E_{F,n} &= k_BT \ln\!\left(\frac{N_C}{N_D}\right), \\
+E_{F,p} - E_V &= k_BT \ln\!\left(\frac{N_V}{N_A}\right).
+\end{align}
+
+\subsection{Equilibrium condition}
+After contact, equilibrium requires a single flat $E_F$ across the whole device (Section~2.2). Far from the junction (quasi-neutral bulk regions), the bands retain their original separation from $E_F$ (doping there is unchanged), so the bands as a whole must shift rigidly with respect to each other between the n-side bulk and the p-side bulk. This rigid shift, expressed in volts, \emph{is} the built-in potential $\varphi_0$:
+\begin{equation}
+q\varphi_0 = E_{F,n} - E_{F,p}\Big|_{\text{before contact}},
+\end{equation}
+i.e. the difference between the two original Fermi levels, since both must collapse onto the same final $E_F$.
+
+\subsection{Derivation via carrier concentrations}
+Using the bulk relations:
+\begin{equation}
+E_C - E_{F,n} = k_BT \ln\!\left(\frac{N_C}{N_D}\right), \qquad
+E_{F,p} - E_V = k_BT \ln\!\left(\frac{N_V}{N_A}\right),
+\end{equation}
+and noting $E_C - E_V = E_g$:
+\begin{equation}
+q\varphi_0 = E_g - k_BT\ln\!\left(\frac{N_C}{N_D}\right) - k_BT\ln\!\left(\frac{N_V}{N_A}\right)
+= k_BT \ln\!\left(\frac{N_D N_A}{N_C N_V}\,e^{E_g/k_BT}\right).
+\end{equation}
+Recognizing $n_i^2 = N_C N_V e^{-E_g/k_BT}$ (intrinsic carrier concentration), this collapses to the standard result:
+\begin{equation}
+\boxed{\varphi_0 = \frac{k_BT}{q}\ln\!\left(\frac{N_D N_A}{n_i^2}\right)}
+\end{equation}
+
+\subsection{Equivalent derivation via mass-action law}
+An alternative, fully equivalent route: in the n-bulk, $n_{n0} \approx N_D$; in the p-bulk, $p_{p0} \approx N_A$. Using $p_{n0} = n_i^2/N_D$ in the n-region and requiring continuity of hole electrochemical potential, one finds the same $\varphi_0$ by writing the hole density ratio across the junction:
+\begin{equation}
+\varphi_0 = \frac{k_BT}{q}\ln\!\left(\frac{p_{p0}}{p_{n0}}\right) = \frac{k_BT}{q}\ln\!\left(\frac{N_A N_D}{n_i^2}\right),
+\end{equation}
+identical to the result above. This form makes explicit that $\varphi_0$ is exactly the electrostatic potential needed to compensate the diffusion tendency of holes (and, symmetrically, electrons) between the two sides, so that drift and diffusion currents cancel and $dE_F/dx = 0$ everywhere.
+
+\subsection{Connection to band bending}
+$\varphi_0$ is not "created" by some external source: it is the electrostatic signature of the flat-$E_F$ condition. The depletion region carries exactly the charge distribution (via Poisson's equation) needed to bend $E_C$ and $E_V$ by $q\varphi_0$ between the two bulks while keeping $E_F$ flat throughout:
+\begin{equation}
+\frac{d^2\varphi}{dx^2} = -\frac{\rho(x)}{\varepsilon_s}, \qquad \varphi(+\infty) - \varphi(-\infty) = \varphi_0,
+\end{equation}
+which, solved with the depletion approximation, also yields the depletion width and the standard $1/2$-power voltage dependence used in diode and MOSFET body-junction capacitance formulas — directly relevant for parasitic capacitance estimates in SiC/Si power devices.
+
+\section{Summary}
+
+\begin{itemize}
+\item $E_F$ arises mathematically as the Lagrange multiplier enforcing particle-number conservation in Fermi--Dirac statistics.
+\item Physically, $E_F$ is the electrochemical potential of the electron gas: the energy at which $f(E) = 1/2$.
+\item $E_F$ need not coincide with an allowed energy state; it is a statistical reference level, not a populated state.
+\item At equilibrium (no net current, no applied bias), $E_F$ must be spatially uniform across any system — this single principle underlies band bending at junctions and built-in potentials in pn structures, heterojunctions, and metal-semiconductor contacts.
+\item The position of $E_F$ within the gap directly sets carrier concentrations via the Boltzmann (or, for degenerate doping, Fermi--Dirac) relations.
+\end{itemize}
+
+\begin{thebibliography}{9}
+
+\bibitem{fermi1926}
+E. Fermi, ``Sulla quantizzazione del gas perfetto monoatomico,'' \emph{Rendiconti Lincei}, vol. 3, pp. 145--149, 1926. (Original derivation of Fermi statistics for an ideal quantum gas.)
+
+\bibitem{dirac1926}
+P. A. M. Dirac, ``On the Theory of Quantum Mechanics,'' \emph{Proc. R. Soc. Lond. A}, vol. 112, no. 762, pp. 661--677, 1926. (Independent derivation establishing Fermi--Dirac statistics from antisymmetric wavefunctions.)
+
+\bibitem{sommerfeld1928}
+A. Sommerfeld, ``Zur Elektronentheorie der Metalle auf Grund der Fermischen Statistik,'' \emph{Zeitschrift f\"ur Physik}, vol. 47, pp. 1--32, 1928. (First application of Fermi--Dirac statistics to the free-electron theory of metals; introduces the Fermi energy concept used in solids.)
+
+\bibitem{shockley1949}
+W. Shockley, ``The Theory of p-n Junctions in Semiconductors and p-n Junction Transistors,'' \emph{Bell System Technical Journal}, vol. 28, no. 3, pp. 435--489, 1949. (Foundational derivation of the built-in potential and depletion-region electrostatics from Fermi-level alignment.)
+
+\bibitem{shockley1950}
+W. Shockley, \emph{Electrons and Holes in Semiconductors}, D. Van Nostrand, 1950. (Textbook-level treatment connecting Fermi--Dirac statistics, doping, and junction theory.)
+
+\bibitem{sze2007}
+S. M. Sze and K. K. Ng, \emph{Physics of Semiconductor Devices}, 3rd ed., Wiley, 2007, ch. 1--2. (Standard modern reference for Fermi level derivation, non-degenerate/degenerate statistics, and the pn-junction built-in potential formula used in this document.)
+
+\bibitem{ashcroftmermin1976}
+N. W. Ashcroft and N. D. Mermin, \emph{Solid State Physics}, Holt, Rinehart and Winston, 1976, ch. 2. (Statistical-mechanical derivation of the Fermi--Dirac distribution via entropy maximization, as used in Section~1.)
+
+\bibitem{neamen2012}
+D. A. Neamen, \emph{Semiconductor Physics and Devices: Basic Principles}, 4th ed., McGraw-Hill, 2012, ch. 4 and 7. (Accessible derivation of carrier statistics, doping-dependent Fermi level position, and pn-junction equilibrium used as cross-reference for the formulas in Sections~2--3.)
+
+\end{thebibliography}
+
+\end{document}

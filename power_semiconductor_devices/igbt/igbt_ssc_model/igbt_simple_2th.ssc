@@ -1,0 +1,173 @@
+component igbt_simple_2th
+% IGBT_SIMPLE_2TH  Simplified IGBT + antiparallel FWD, separate thermal ports
+%
+% Same modelling assumptions as IGBT_SIMPLE, but the losses of the transistor
+% and of the diode are kept separate and delivered to two thermal ports:
+%   Ht : IGBT chip     -> conduction (v*i_t) + Eon + Eoff
+%   Hd : FWD chip      -> conduction (v*i_d) + Err
+%
+% Err attribution
+% ---------------
+% The recovery energy of THIS diode is dissipated when the complementary
+% switch of the leg turns on. That instant is detected locally as the moment
+% the terminal voltage rises above V_rr_th while the diode was conducting.
+% The diode current before the commutation is kept in the state i_dh, which
+% tracks the diode current while it conducts, is flushed to zero while the
+% transistor is gated on, and holds otherwise (dead time). As a result:
+%   - in the half period in which the diode conducts, one Err event per
+%     switching period is generated with the correct current;
+%   - in the half period in which the transistor conducts, the same voltage
+%     rise occurs at turn-off but i_dh has been flushed, so Err = 0.
+%
+% Default parameters: Mitsubishi CM1200DW-34T, 1700 V / 1200 A.
+% Suggested thermal networks (datasheet, normalised Foster coefficients):
+%   Ht : Rth(j-c)Q = 28 K/kW      Hd : Rth(j-c)D = 43 K/kW
+%   both connected to a common case node, then Rth(c-s) = 10 K/kW per module.
+
+nodes
+    p  = foundation.electrical.electrical; % C:left
+    n  = foundation.electrical.electrical; % E:right
+    Ht = foundation.thermal.thermal;       % Ht:left
+    Hd = foundation.thermal.thermal;       % Hd:right
+end
+
+inputs
+    g = { 0, 'V' };                       % G:left
+end
+
+outputs
+    Pt = { 0, 'W' };                      % Pt:right
+    Pd = { 0, 'W' };                      % Pd:right
+end
+
+parameters
+    % --- conduction (Tvj = 125 C, terminal values) ---
+    Vce_sat  = { 2.40, 'V'    };  % Collector-emitter on-state voltage
+    Vf       = { 2.80, 'V'    };  % Diode forward voltage
+
+    % --- gate ---
+    Vth      = { 6,    'V'    };  % Gate-emitter threshold voltage
+    Vhyst    = { 0.85, 'V'    };  % Half hysteresis band for the switching events
+
+    % --- switching, single point ---
+    Eon_ref  = { 138,  'mJ'   };  % Turn-on energy at Ic_ref, Vdc_ref
+    Eoff_ref = { 309,  'mJ'   };  % Turn-off energy at Ic_ref, Vdc_ref
+    Err_ref  = { 220,  'mJ'   };  % Reverse recovery energy at Ic_ref, Vdc_ref
+    Ic_ref   = { 1200, 'A'    };  % Reference current of the energies
+    Vdc_ref  = { 1000, 'V'    };  % Reference voltage of the energies
+
+    % --- numerical ---
+    V_rr_th  = { 50,   'V'    };  % Blocking detection level for the Err event
+    Ron      = { 0.05, 'mOhm' };  % IGBT on-state series resistance
+    Rd       = { 0.05, 'mOhm' };  % Diode series resistance
+    Goff     = { 1e-6, '1/Ohm'};  % Off-state conductance
+    tau_s    = { 1,    'us'   };  % Sample&hold time constant (<< on-time)
+    tau_p    = { 200,  'us'   };  % Loss averaging time constant (2-5 x Tsw)
+end
+
+variables
+    i     = { 0, 'A' };           % terminal current, C -> E
+    v     = { 0, 'V' };           % terminal voltage, C - E
+    i_t   = { 0, 'A' };           % IGBT current
+    i_d   = { 0, 'A' };           % diode current
+    i_h   = { 0, 'A' };           % held IGBT commutated current
+    i_dh  = { 0, 'A' };           % held diode current before recovery
+    v_h   = { 0, 'V' };           % held blocking voltage
+    E_lpt = { 0, 'J' };           % low-pass state, IGBT switching energy
+    E_lpd = { 0, 'J' };           % low-pass state, diode switching energy
+    Qt    = { 0, 'W' };           % heat flow into the component through Ht
+    Qd    = { 0, 'W' };           % heat flow into the component through Hd
+end
+
+variables (Event = true)
+    E_t = { 0, 'J' };             % cumulative IGBT switching energy
+    E_d = { 0, 'J' };             % cumulative diode recovery energy
+end
+
+branches
+    i  : p.i  -> n.i;
+    Qt : Ht.Q -> *;               % positive Q = heat flowing INTO the component
+    Qd : Hd.Q -> *;
+end
+
+equations
+    assert(Vce_sat > 0)
+    assert(Vf      > 0)
+    assert(Ic_ref  > 0)
+    assert(Vdc_ref > 0)
+    assert(tau_s   > 0)
+    assert(tau_p   > 0)
+    assert(Vhyst   > 0)
+    assert(V_rr_th > Vf)
+
+    v == p.v - n.v;
+    i == i_t + i_d;
+
+    % ---------- conduction ----------
+    if (g > Vth) && (v > Vce_sat)
+        i_t == (v - Vce_sat)/Ron;
+    else
+        i_t == v*Goff;
+    end
+
+    if v < -Vf
+        i_d == (v + Vf)/Rd;
+    else
+        i_d == v*Goff;
+    end
+
+    % ---------- sample & hold ----------
+    % IGBT current: tracked while ON, held while OFF.
+    if g > Vth
+        i_h.der == (i_t - i_h)/tau_s;
+    else
+        i_h.der == 0;
+    end
+
+    % Blocking voltage: tracked while OFF and forward biased.
+    if (g < Vth) && (v > 0)
+        v_h.der == (v - v_h)/tau_s;
+    else
+        v_h.der == 0;
+    end
+
+    % Diode current magnitude: tracked while the diode conducts, flushed while
+    % the transistor is gated on, held during the dead time.
+    if v < -Vf
+        i_dh.der == (-i_d - i_dh)/tau_s;
+    elseif g > Vth
+        i_dh.der == -i_dh/tau_s;
+    else
+        i_dh.der == 0;
+    end
+
+    % ---------- losses ----------
+    E_lpt.der == (E_t - E_lpt)/tau_p;
+    E_lpd.der == (E_d - E_lpd)/tau_p;
+
+    Pt == v*i_t + (E_t - E_lpt)/tau_p;
+    Pd == v*i_d + (E_d - E_lpd)/tau_p;
+
+    Qt == -Pt;
+    Qd == -Pd;
+end
+
+events
+    % One when/elsewhen chain: the branches are mutually exclusive by
+    % construction, so no event variable is updated by two event equations.
+
+    % turn-on of the IGBT
+    when edge(g > (Vth + Vhyst))
+        E_t = E_t + Eon_ref*(abs(i_h)/Ic_ref)*(abs(v_h)/Vdc_ref);
+
+    % turn-off of the IGBT
+    elsewhen edge(g < (Vth - Vhyst))
+        E_t = E_t + Eoff_ref*(abs(i_h)/Ic_ref)*(abs(v_h)/Vdc_ref);
+
+    % reverse recovery of the FWD, forced by the complementary switch
+    elsewhen edge(v > V_rr_th)
+        E_d = E_d + Err_ref*(abs(i_dh)/Ic_ref)*(abs(v_h)/Vdc_ref);
+    end
+end
+
+end

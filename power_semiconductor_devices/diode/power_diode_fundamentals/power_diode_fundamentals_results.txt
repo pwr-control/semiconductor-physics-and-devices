@@ -1,0 +1,131 @@
+Power PIN diode, device physics: numbers of power_diode_fundamentals.tex
+
+1. Silicon at 300 K (assumed round values)
+   V_T = 25.85 mV, n_i = 1.0e+10 cm-3, mu_n = 1400, mu_p = 450 cm2/Vs
+   D_n = 36.19, D_p = 11.63, D_a = 17.61 cm2/s; b = mu_n/mu_p = 3.11, B = 0.514, 1 - B^2 = 0.736
+   permittivity: 11.7 eps_0 = 1.036e-12 F/cm
+   tau = 1 us: L_a = 42.0 um
+   tau = 10 us: L_a = 132.7 um
+   large-width asymptote of V_M: 1.348 V_T exp(d/La); handbook form (3 pi/8) V_T exp(d/La) = 1.178 V_T exp(d/La), written for b = 3 ((1 - B^2) pi/2 = 1.157 with b = 3.11)
+   D_a at 125 C with mu_n ~ T^-2.4, mu_p ~ T^-2.2: 12.4 cm2/s
+   D_a at 150 C with mu_n ~ T^-2.4, mu_p ~ T^-2.2: 11.5 cm2/s
+   n_i doubles every 8.4 K at 300 K and every 14.7 K at 400 K; n_i(125 C)/n_i(25 C) = 544
+   junction voltage 0.60 V at constant current: dv/dT = -2.26 mV/K
+   junction voltage 0.82 V at constant current: dv/dT = -1.53 mV/K
+   Auger lifetime at p = 1e+17 cm-3: 263.2 us
+   Auger lifetime at p = 1e+18 cm-3: 2.6 us
+
+2. Blocking design of the base (non-punch-through unless stated)
+   N_D = 2e+13 cm-3: E_c = 1.84e5 V/cm, V_BR = 5497 V, w = 596 um, R_unipolar = 13.29 Ohm cm2 (1329 V at 100 A/cm2)
+   N_D = 5e+13 cm-3: E_c = 2.07e5 V/cm, V_BR = 2765 V, w = 267 um, R_unipolar = 2.38 Ohm cm2 (238 V at 100 A/cm2)
+   N_D = 1e+14 cm-3: E_c = 2.25e5 V/cm, V_BR = 1644 V, w = 146 um, R_unipolar = 0.65 Ohm cm2 (65 V at 100 A/cm2)
+   N_D = 2e+14 cm-3: E_c = 2.46e5 V/cm, V_BR = 977 V, w = 80 um, R_unipolar = 0.18 Ohm cm2 (18 V at 100 A/cm2)
+   closed forms with this permittivity: V_BR = 5.199e+13 N_D^-3/4 V, w = 2.593e+10 N_D^-7/8 cm
+   V_BR = 2000 V: NPT needs N_D = 7.70e+13 cm-3, w = 183 um, R = 1.06 Ohm cm2; PT with N_D = 3e+13 (E_c = 1.94e5 V/cm) needs w = 120 um (34 % thinner); limit of a rectangular field: 103 um
+   base of the conduction example (100 um, 1e+14 cm-3) as a PT design: V_BR = 1482 V
+   holes in transit at 100 A/cm2: p = J/(q v_sat) = 6.24e+13 cm-3 (62 % of N_D = 1e+14); critical field reached at 1143 V (static, same doping: 1644 V)
+   holes in transit at 300 A/cm2: p = J/(q v_sat) = 1.87e+14 cm-3 (187 % of N_D = 1e+14); critical field reached at 745 V (static, same doping: 1644 V)
+   built-in potentials: p+n- 0.774 V, n-n+ 0.298 V (emitters 1e+19 cm-3, base 1e+14 cm-3)
+   space-charge region: 3.16 um at 0 V (C_j = 3.27 nF/cm2), 88.1 um at 600 V (C_j = 118 pF/cm2); charge from 0 to 600 V: 0.136 uC/cm2; the 100 um base is reached at 773 V
+   generation current at 600 V, tau_g = 1 us, 300 K: 14.1 uA/cm2
+
+3. Forward conduction of the base in high injection
+   base 100 um, N_D = 1e+14 cm-3, J = 100 A/cm2; without injection: R = 0.446 Ohm cm2, drop 45 V
+   low injection, tau_p = 1 us: L_p = 34.1 um, J_S = 5.46e-10 A/cm2; p(-d) = N_D at v_j1 = 0.476 V, J = 55 mA/cm2
+   tau = 10 us: L_a = 132.7 um, d/L_a = 0.38; mean p = 6.24e+17, p(-d) = 6.97e+17, p(+d) = 6.10e+17, minimum 5.99e+17 at x = +24.8 um
+      stored charge 1000 uC/cm2; sigma/sigma0 = 8248; V_M: ohmic part 5.4 mV (flat-profile estimate 5.4 mV), Dember part 1.8 mV, total 7.2 mV (thin-base limit 2 V_T (d/La)^2 = 7.3 mV)
+      junction voltages: p+n- 0.705 V, n-n+ 0.225 V; V_F = 0.937 V; T_M/tau of the static profile (symmetric) = 0.047
+      with emitter recombination (h = 2e-14 cm4/s each): p(-d) = 1.32e+17, p(+d) = 9.24e+16, stored charge 171.4 uC/cm2, tau_eff = 1.71 us (17 % of tau), emitter share of J = 83 %, V_M = 36.6 mV, V_F = 0.875 V
+      slope with emitter recombination: d(v_j1 + v_j2)/d ln J = 1.07 V_T (2/(1 + J_E/J) = 1.09), d V_F/d ln J = 1.67 V_T; mean p = 1.07e+17
+      quasi-Fermi levels at the p+ edge (ideal emitters): separation 0.934 eV against q v_j1 = 0.705 eV; Auger lifetime at the mean concentration 6.8 us
+   tau = 1 us: L_a = 42.0 um, d/L_a = 1.19; mean p = 6.24e+16, p(-d) = 1.21e+17, p(+d) = 5.78e+16, minimum 4.50e+16 at x = +19.1 um
+      stored charge 100 uC/cm2; sigma/sigma0 = 825; V_M: ohmic part 58.7 mV (flat-profile estimate 54.1 mV), Dember part 9.8 mV, total 68.6 mV (thin-base limit 2 V_T (d/La)^2 = 73.4 mV)
+      junction voltages: p+n- 0.660 V, n-n+ 0.164 V; V_F = 0.893 V; T_M/tau of the static profile (symmetric) = 0.434
+      with emitter recombination (h = 2e-14 cm4/s each): p(-d) = 8.48e+16, p(+d) = 4.26e+16, stored charge 71.2 uC/cm2, tau_eff = 0.71 us (71 % of tau), emitter share of J = 29 %, V_M = 91.1 mV, V_F = 0.898 V
+      slope with emitter recombination: d(v_j1 + v_j2)/d ln J = 1.57 V_T (2/(1 + J_E/J) = 1.55), d V_F/d ln J = 2.24 V_T; mean p = 4.44e+16
+      quasi-Fermi levels at the p+ edge (ideal emitters): separation 0.843 eV against q v_j1 = 0.660 eV; Auger lifetime at the mean concentration 675.5 us
+   tau = 0.3 us: L_a = 23.0 um, d/L_a = 2.18; mean p = 1.87e+16, p(-d) = 6.22e+16, p(+d) = 2.14e+16, minimum 8.11e+15 at x = +12.6 um
+      stored charge 30 uC/cm2; sigma/sigma0 = 247; V_M: ohmic part 250.6 mV (flat-profile estimate 180.2 mV), Dember part 14.2 mV, total 264.7 mV (thin-base limit 2 V_T (d/La)^2 = 244.7 mV)
+      junction voltages: p+n- 0.643 V, n-n+ 0.139 V; V_F = 1.046 V; T_M/tau of the static profile (symmetric) = 1.232
+      with emitter recombination (h = 2e-14 cm4/s each): p(-d) = 5.44e+16, p(+d) = 2.02e+16, stored charge 26.8 uC/cm2, tau_eff = 0.27 us (89 % of tau), emitter share of J = 11 %, V_M = 289.9 mV, V_F = 1.066 V
+      slope with emitter recombination: d(v_j1 + v_j2)/d ln J = 1.83 V_T (2/(1 + J_E/J) = 1.81), d V_F/d ln J = 2.71 V_T; mean p = 1.67e+16
+      quasi-Fermi levels at the p+ edge (ideal emitters): separation 0.809 eV against q v_j1 = 0.643 eV; Auger lifetime at the mean concentration 7505.8 us
+   d/L_a = 0.25: V_M/V_T = 0.124 (ohmic 0.092, Dember 0.032); thin-base limit 0.125 (+1 %), flat-profile estimate 0.092 (-26 %), asymptote 1.731 (+1299 %), handbook form 1.513 (+1123 %)
+   d/L_a = 0.5: V_M/V_T = 0.483 (ohmic 0.370, Dember 0.113); thin-base limit 0.500 (+3 %), flat-profile estimate 0.368 (-24 %), asymptote 2.222 (+360 %), handbook form 1.942 (+302 %)
+   d/L_a = 1: V_M/V_T = 1.866 (ohmic 1.551, Dember 0.315); thin-base limit 2.000 (+7 %), flat-profile estimate 1.473 (-21 %), asymptote 3.664 (+96 %), handbook form 3.202 (+72 %)
+   d/L_a = 2: V_M/V_T = 8.300 (ohmic 7.767, Dember 0.533); thin-base limit 8.000 (-4 %), flat-profile estimate 5.890 (-29 %), asymptote 9.959 (+20 %), handbook form 8.705 (+5 %)
+   d/L_a = 3: V_M/V_T = 25.550 (ohmic 24.974, Dember 0.576); thin-base limit 18.000 (-30 %), flat-profile estimate 13.253 (-48 %), asymptote 27.073 (+6 %), handbook form 23.663 (-7 %)
+   d/L_a = 4: V_M/V_T = 72.133 (ohmic 71.551, Dember 0.582); thin-base limit 32.000 (-56 %), flat-profile estimate 23.562 (-67 %), asymptote 73.591 (+2 %), handbook form 64.322 (-11 %)
+   d/L_a = 5: V_M/V_T = 198.609 (ohmic 198.027, Dember 0.583); thin-base limit 50.000 (-75 %), flat-profile estimate 36.815 (-81 %), asymptote 200.042 (+1 %), handbook form 174.845 (-12 %)
+   V_F at constant current and width is lowest at d/L_a = 0.955 (tau = 1.56 us for this base, V_F = 0.887 V); within 10 mV of the minimum for d/L_a from 0.67 to 1.26
+   plasma of the middle example: sigma = 18.5 S/cm, dielectric relaxation time 56 fs, Debye length 12 nm; base without injection: 45 Ohm cm, relaxation 46 ps
+   transit times of the base: d^2/(3 D_a) = 473 ns, 4 d^2/(pi^2 D_a) = 575 ns
+   tau = 1 us, J = 10 A/cm2 with emitter recombination: tau_eff = 0.95 us, emitter share 5 %
+   tau = 1 us, J = 100 A/cm2 with emitter recombination: tau_eff = 0.71 us, emitter share 29 %
+   tau = 1 us, J = 300 A/cm2 with emitter recombination: tau_eff = 0.53 us, emitter share 47 %
+
+4. Checks of the charge-control relations
+   I_F/I_R = 1: storage time 0.6931 tau (two-charge model with T_M -> 0: 0.6931 tau)
+   I_F/I_R = 4: storage time 1.6094 tau (two-charge model with T_M -> 0: 1.6094 tau)
+   ramp with I_F/(a tau) = 0.2: charge at the current zero = 91 % of tau*I_F
+   ramp with I_F/(a tau) = 1: charge at the current zero = 63 % of tau*I_F
+   ramp with I_F/(a tau) = 5: charge at the current zero = 20 % of tau*I_F
+   one charge, I_F/(a tau) = 0.2: I_rr = 0.507 a tau = 2.534 I_F, Q_rr = 64 % of tau*I_F; fast-ramp estimate sqrt(2 a tau I_F) = 0.632 a tau
+   one charge, I_F/(a tau) = 1: I_rr = 0.841 a tau = 0.841 I_F, Q_rr = 35 % of tau*I_F; fast-ramp estimate sqrt(2 a tau I_F) = 1.414 a tau
+   one charge, I_F/(a tau) = 5: I_rr = 0.998 a tau = 0.200 I_F, Q_rr = 10 % of tau*I_F; fast-ramp estimate sqrt(2 a tau I_F) = 3.162 a tau
+   T_M: parabolic profile d^2/(3 D); slowest mode 4 d^2/(pi^2 D), ratio 1.216
+   unequal mobilities, parabolic profile: charge at the blocking instant = (1 + 3B) d^2/(3 D_a) |i|, 1 + 3B = 2.54
+   distributed base on a long ramp (ideal emitters, constant lifetime), closed form:
+      d/L_a = 0.25: t_a = 0.9511 tau; T_M = tau (tau/t_a - 1) = 0.0514 tau = 2.469 d^2/(3 D_a) (equal mobilities: 0.992); softness 0.101 (equal mobilities 0.041); residual plasma peaks at x/d = +0.50
+         conversion of I_rr and Q_rr: tau = 0.999 of the true one, T_M = 0.051 tau = 2.43 d^2/(3 D_a): base width by d^2/(3 D_a), 1.56 times the true one
+         finite differences, ramp of 5 lifetimes, b = 1.00: charge at the blocking instant over the peak 0.0207 tau (closed form 0.0207), softness 0.0413 (0.0412)
+         finite differences, ramp of 5 lifetimes, b = 3.11: charge at the blocking instant over the peak 0.0514 tau (closed form 0.0514), softness 0.1016 (0.1016)
+      d/L_a = 0.5: t_a = 0.8414 tau; T_M = tau (tau/t_a - 1) = 0.1885 tau = 2.262 d^2/(3 D_a) (equal mobilities: 0.967); softness 0.355 (equal mobilities 0.158); residual plasma peaks at x/d = +0.45
+         conversion of I_rr and Q_rr: tau = 0.991 of the true one, T_M = 0.176 tau = 2.11 d^2/(3 D_a): base width by d^2/(3 D_a), 1.45 times the true one
+         finite differences, ramp of 5 lifetimes, b = 1.00: charge at the blocking instant over the peak 0.0805 tau (closed form 0.0805), softness 0.1587 (0.1587)
+         finite differences, ramp of 5 lifetimes, b = 3.11: charge at the blocking instant over the peak 0.1885 tau (closed form 0.1885), softness 0.3561 (0.3561)
+      d/L_a = 1: t_a = 0.6492 tau; T_M = tau (tau/t_a - 1) = 0.5404 tau = 1.621 d^2/(3 D_a) (equal mobilities: 0.867); softness 0.858 (equal mobilities 0.535); residual plasma peaks at x/d = +0.23
+         conversion of I_rr and Q_rr: tau = 0.928 of the true one, T_M = 0.398 tau = 1.19 d^2/(3 D_a): base width by d^2/(3 D_a), 1.09 times the true one
+         finite differences, ramp of 5 lifetimes, b = 1.00: charge at the blocking instant over the peak 0.2891 tau (closed form 0.2891), softness 0.5369 (0.5368)
+         finite differences, ramp of 5 lifetimes, b = 3.11: charge at the blocking instant over the peak 0.5399 tau (closed form 0.5399), softness 0.8603 (0.8603)
+      d/L_a = 1.5: t_a = 0.5611 tau; T_M = tau (tau/t_a - 1) = 0.7824 tau = 1.043 d^2/(3 D_a) (equal mobilities: 0.719); softness 1.037 (equal mobilities 0.896); residual plasma peaks at x/d = -0.13
+         conversion of I_rr and Q_rr: tau = 0.852 of the true one, T_M = 0.442 tau = 0.59 d^2/(3 D_a): base width by d^2/(3 D_a), 0.77 times the true one
+      d/L_a = 2: t_a = 0.5259 tau; T_M = tau (tau/t_a - 1) = 0.9014 tau = 0.676 d^2/(3 D_a) (equal mobilities: 0.558); softness 1.059 (equal mobilities 1.079); residual plasma peaks at x/d = -0.42
+         conversion of I_rr and Q_rr: tau = 0.804 of the true one, T_M = 0.426 tau = 0.32 d^2/(3 D_a): base width by d^2/(3 D_a), 0.57 times the true one
+      d/L_a = 3: t_a = 0.5048 tau; T_M = tau (tau/t_a - 1) = 0.9808 tau = 0.327 d^2/(3 D_a) (equal mobilities: 0.314); softness 1.029 (equal mobilities 1.082); residual plasma peaks at x/d = -0.66
+         conversion of I_rr and Q_rr: tau = 0.765 of the true one, T_M = 0.393 tau = 0.13 d^2/(3 D_a): base width by d^2/(3 D_a), 0.36 times the true one
+      d/L_a = 9: t_a = 0.50000 tau, softness 1.00000, conversion: tau = 0.75000, T_M = 0.37500 tau (limits 1/2, 1, 3/4, 3/8)
+      b = 3.11: largest softness on a long ramp 1.0595 at d/L_a = 1.93; softness 1 at d/L_a = 1.31
+      b = 1.00: largest softness on a long ramp 1.1115 at d/L_a = 2.41; softness 1 at d/L_a = 1.72
+      b = 3.11: the residual plasma has its maximum at the centre of the base for d/L_a = 1.34
+   tail mode with b = 3.11: k d = 0.949, T_M = 1.11 d^2/D_a = 3.33 times d^2/(3 D_a) (equal mobilities: 0.405 d^2/D_a)
+
+5. Worked examples of the Lauritzen-Ma note: base width behind T_M, peak voltage with the junction capacitance, energies in a switching leg
+   diode A: T_M = 19.9 us, D_a = 12 cm2/s: base width 536 um (parabola, equal mobilities), 336 um (blocking condition, b = 3.11), 294 um (tail mode, b = 3.11)
+      D_a at 150 C by the power law of this note: 11.5 cm2/s, widths -2.3 %
+   diode B: T_M = 0.182 us, D_a = 13 cm2/s: base width 53 um (parabola, equal mobilities), 33 um (blocking condition, b = 3.11), 29 um (tail mode, b = 3.11)
+      D_a at 125 C by the power law of this note: 12.4 cm2/s, widths -2.5 %
+   diode A with a distributed base (b = 3.11, D_a = 12 cm2/s): the lifetime is set by I_rr = 125 A, and the charge follows; conversion of the note: tau = 38.17 us, T_M = 19.95 us
+      d/L_a = 0.50: tau = 29.73 us, Q_rr = 2118 uC (-33.8 % on the datum), softness 0.355, base width 189 um
+      d/L_a = 1.00: tau = 38.61 us, Q_rr = 2906 uC (-9.2 % on the datum), softness 0.860, base width 431 um
+      d/L_a = 1.30: tau = 42.77 us, Q_rr = 3124 uC (-2.4 % on the datum), softness 0.999, base width 589 um
+      d/L_a = 1.92: tau = 47.46 us, Q_rr = 3221 uC (+0.7 % on the datum), softness 1.062, base width 915 um
+      d/L_a = 3.00: tau = 49.80 us, Q_rr = 3173 uC (-0.9 % on the datum), softness 1.030, base width 1467 um
+      d/L_a = 4.00: tau = 50.18 us, Q_rr = 3140 uC (-1.9 % on the datum), softness 1.010, base width 1963 um
+      d/L_a = 8.00: tau = 50.26 us, Q_rr = 3127 uC (-2.3 % on the datum), softness 1.001, base width 3929 um
+      both data reproduced with d/L_a = 1.573, tau = 45.38 us, base width 734 um (softness 1.048, ramp of 4.96 lifetimes)
+      both data reproduced with d/L_a = 2.484, tau = 49.15 us, base width 1206 um (softness 1.048, ramp of 4.58 lifetimes)
+   diode B: softness of the data 2.75; distributed base with I_rr/I_F = 0.8, b = 3.11: largest softness 1.328 at d/L_a = 1.62
+   diode B: softness of the data 2.75; distributed base with I_rr/I_F = 0.8, b = 1.00: largest softness 1.404 at d/L_a = 2.01
+   diode A in the cell without a snubber: V_RM = V_R (1 + 2/s) = 291 V without capacitance; with the junction capacitance alone the first peak is 849 V by the closed form and 844 V in the simulation (then the voltage returns to 0 V and oscillates with a period of 972 ns; sqrt(L C_j) at the peak = 107.3 ns against tau_rr = 13100 ns); with the snubber of the note 289 V
+   diode B in the cell without a snubber: V_RM = V_R (1 + 2/s) = 1036 V without capacitance; with the junction capacitance alone the first peak is 3063 V by the closed form and 3010 V in the simulation (then the voltage returns to 0 V and oscillates with a period of 28 ns; sqrt(L C_j) at the peak = 3.0 ns against tau_rr = 110 ns); with the snubber of the note 927 V
+   diode A: the ramp of the set lasts 5 lifetimes at 6.0 A/us
+   diode A: the ramp of the set lasts 3 lifetimes at 11.0 A/us
+   diode A at 10 A/us: ramp of 3.25 lifetimes; exact I_rr and Q_rr are -3.9 % and -5.7 % on the long-ramp relations
+   diode B, 600 V, 100 A, I_rr = 80 A, t_a = 80 ns, tau_rr = 110 ns, s = 2.75:
+      V_R Q_rr = 7.20 mJ; diode with a real switch V_R I_rr tau_rr = 5.28 mJ (k = s/(1+s) = 0.73); extra turn-on energy of the switch V_R (I_F + I_rr/2) t_a = 6.72 mJ (4.80 mJ load current + 1.92 mJ recovery current)
+      overvoltage in a leg with L_sigma = 50 nH at 1000 A/us: 36 V with s = 2.75, 200 V with s = 0.5; cell with an ideal switch (L = V_R/a = 600 nH): 436 V
+   base of 100 um: V_M tau = w^2 (mu_n+mu_p)/(4 mu_n mu_p) = 73.4 mV us (thin-base limit)
+   open-circuit voltage decay with tau = 1 us: 2 V_T/tau = 51.7 mV/us
+   silicon unipolar base for 1200 V: N_D = 1.52e+14 cm-3, w = 101 um, R = 0.30 Ohm cm2 (30 V at 100 A/cm2)
+

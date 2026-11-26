@@ -1,0 +1,143 @@
+component igbt_simple
+% IGBT_SIMPLE  Simplified IGBT + antiparallel FWD with thermal port
+%
+% Conduction  : fixed Vce_sat (IGBT) and Vf (diode); Ron/Rd only for
+%               numerical conditioning, not for accuracy.
+% Switching   : single-point Eon/Eoff/Err, linearly scaled with the actual
+%               commutated current and blocking voltage:
+%                   E = E_ref * (Ic/Ic_ref) * (Vdc/Vdc_ref)
+% Thermal     : total loss (conduction + switching) is injected into port H.
+%
+% Ic and Vdc are not taken at the switching event itself (the solver value
+% there is already the post-transition one) but from two fast sample&hold
+% states:
+%   i_h : IGBT current, tracked while the gate is ON  -> value before turn-off
+%         and, one period later, the current to be commutated at turn-on
+%   v_h : terminal voltage, tracked while the gate is OFF -> DC-link voltage
+%
+% Err is charged to the turn-on event of this device (physically it belongs
+% to the FWD of the complementary switch). Leg losses are correct, the
+% split between IGBT and FWD junction is approximate. Set Err_ref = 0 if the
+% diode is modelled separately.
+%
+% Default parameters: Mitsubishi CM1200DW-34T, 1700 V / 1200 A.
+
+nodes
+    p = foundation.electrical.electrical; % C:left
+    n = foundation.electrical.electrical; % E:right
+    H = foundation.thermal.thermal;       % H:left
+end
+
+inputs
+    g = { 0, 'V' };                       % G:left
+end
+
+outputs
+    P = { 0, 'W' };                       % P:right
+end
+
+parameters
+    % --- conduction (Tvj = 125 C, terminal values) ---
+    Vce_sat  = { 2.40, 'V'    };  % Collector-emitter on-state voltage
+    Vf       = { 2.80, 'V'    };  % Diode forward voltage
+
+    % --- gate ---
+    Vth      = { 6,    'V'    };  % Gate-emitter threshold voltage
+    Vhyst    = { 0.85, 'V'    };  % Half hysteresis band for the switching events
+
+    % --- switching, single point ---
+    Eon_ref  = { 138,  'mJ'   };  % Turn-on energy at Ic_ref, Vdc_ref
+    Eoff_ref = { 309,  'mJ'   };  % Turn-off energy at Ic_ref, Vdc_ref
+    Err_ref  = { 220,  'mJ'   };  % Reverse recovery energy at Ic_ref, Vdc_ref
+    Ic_ref   = { 1200, 'A'    };  % Reference current of the energies
+    Vdc_ref  = { 1000, 'V'    };  % Reference voltage of the energies
+
+    % --- numerical ---
+    Ron      = { 0.05, 'mOhm' };  % IGBT on-state series resistance
+    Rd       = { 0.05, 'mOhm' };  % Diode series resistance
+    Goff     = { 1e-6, '1/Ohm'};  % Off-state conductance
+    tau_s    = { 1,    'us'   };  % Sample&hold time constant (<< on-time)
+    tau_p    = { 200,  'us'   };  % Loss averaging time constant (2-5 x Tsw)
+end
+
+variables
+    i    = { 0, 'A' };            % terminal current, C -> E
+    v    = { 0, 'V' };            % terminal voltage, C - E
+    i_t  = { 0, 'A' };            % IGBT current
+    i_d  = { 0, 'A' };            % diode current
+    i_h  = { 0, 'A' };            % held commutated current
+    v_h  = { 0, 'V' };            % held blocking voltage
+    E_lp = { 0, 'J' };            % low-pass state of the switching energy
+    Q    = { 0, 'W' };            % heat flow into the component through H
+end
+
+variables (Event = true)
+    E_sw = { 0, 'J' };            % cumulative switching energy
+end
+
+branches
+    i : p.i -> n.i;
+    Q : H.Q -> *;                 % positive Q = heat flowing INTO the component
+end
+
+equations
+    assert(Vce_sat  > 0)
+    assert(Vf       > 0)
+    assert(Ic_ref   > 0)
+    assert(Vdc_ref  > 0)
+    assert(tau_s    > 0)
+    assert(tau_p    > 0)
+    assert(Vhyst    > 0)
+
+    v == p.v - n.v;
+    i == i_t + i_d;
+
+    % ---------- conduction ----------
+    if (g > Vth) && (v > Vce_sat)
+        i_t == (v - Vce_sat)/Ron;
+    else
+        i_t == v*Goff;
+    end
+
+    if v < -Vf
+        i_d == (v + Vf)/Rd;
+    else
+        i_d == v*Goff;
+    end
+
+    % ---------- sample & hold of Ic and Vdc ----------
+    if g > Vth
+        i_h.der == (i_t - i_h)/tau_s;     % track while ON
+    else
+        i_h.der == 0;                     % hold while OFF
+    end
+
+    if (g < Vth) && (v > 0)
+        v_h.der == (v - v_h)/tau_s;       % track the blocking voltage
+    else
+        v_h.der == 0;
+    end
+
+    % ---------- losses ----------
+    % E_sw is a staircase; the first-order lag turns each step into a
+    % power pulse whose time integral is exactly the step height.
+    E_lp.der == (E_sw - E_lp)/tau_p;
+
+    P == v*i + (E_sw - E_lp)/tau_p;
+    Q == -P;                              % dissipated power leaves through H
+end
+
+events
+    % A single when/elsewhen chain: the two branches are mutually exclusive by
+    % construction, so E_sw is updated by one event equation only.
+    % turn-on: Eon of this IGBT + Err of the complementary FWD
+    when edge(g > (Vth + Vhyst))
+        E_sw = E_sw + (Eon_ref + Err_ref)*(abs(i_h)/Ic_ref)*(abs(v_h)/Vdc_ref);
+
+    % turn-off
+    elsewhen edge(g < (Vth - Vhyst))
+        E_sw = E_sw + Eoff_ref*(abs(i_h)/Ic_ref)*(abs(v_h)/Vdc_ref);
+    end
+end
+
+end

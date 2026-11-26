@@ -1,0 +1,456 @@
+% =====================================================================
+%  Livelli di Fermi in un tiristore: stato di blocco e stato di conduzione
+%  Compilare con: pdflatex tiristore_bande_fermi.tex  (due volte)
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[italian,provide=*]{babel}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{circuitikz}
+\usepackage{caption}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
+
+\usetikzlibrary{arrows.meta,patterns}
+
+% ---------------------------- colori --------------------------------
+\definecolor{pcol}{RGB}{253,232,232}   % strato p
+\definecolor{ncol}{RGB}{228,238,253}   % strato n
+\definecolor{ccol}{RGB}{25,80,170}     % banda di conduzione
+\definecolor{vcol}{RGB}{175,35,35}     % banda di valenza
+\definecolor{fncol}{RGB}{15,120,60}    % quasi-livello elettroni
+\definecolor{fpcol}{RGB}{205,110,0}    % quasi-livello lacune
+
+% ------------------- sfondo comune ai diagrammi a bande -------------
+% #1 = y minimo, #2 = y massimo
+\newcommand{\bandbg}[2]{%
+  \fill[pcol] (0,#1) rectangle (2.5,#2);
+  \fill[ncol] (2.5,#1) rectangle (7,#2);
+  \fill[pcol] (7,#1) rectangle (9.5,#2);
+  \fill[ncol] (9.5,#1) rectangle (12,#2);
+  \draw[gray!55,dashed] (2.5,#1)--(2.5,#2) (7,#1)--(7,#2) (9.5,#1)--(9.5,#2);
+  \draw[gray!55] (0,#1) rectangle (12,#2);
+  \node[anchor=south,font=\small] at (1.25,#2)  {$p_1$ ($p^{+}$)};
+  \node[anchor=south,font=\small] at (4.75,#2)  {$n_1$ ($n^{-}$)};
+  \node[anchor=south,font=\small] at (8.25,#2)  {$p_2$};
+  \node[anchor=south,font=\small] at (10.75,#2) {$n_2$ ($n^{+}$)};
+  \node[anchor=north,font=\scriptsize] at (2.5,#1) {$J_1$};
+  \node[anchor=north,font=\scriptsize] at (7,#1)   {$J_2$};
+  \node[anchor=north,font=\scriptsize] at (9.5,#1) {$J_3$};
+  \node[anchor=north,font=\scriptsize] at (0.6,#1)  {anodo};
+  \node[anchor=north,font=\scriptsize] at (11.4,#1) {catodo};
+}
+
+\title{\bfseries Livelli di Fermi in un tiristore\\[2mm]
+\large Diagrammi a bande nello stato di blocco e nello stato di conduzione}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-12mm}
+
+\begin{abstract}
+\noindent
+Il documento descrive il funzionamento del tiristore (SCR) dal punto di vista della
+fisica del semiconduttore, usando come strumento principale il diagramma a bande di
+energia con il livello di Fermi e i quasi-livelli di Fermi. Vengono trattati
+l'equilibrio termodinamico, il blocco diretto, l'innesco e lo stato di conduzione.
+Le figure sono qualitative e non in scala: le tensioni reali di blocco (kV)
+non sono rappresentabili sulla stessa scala del gap del silicio ($E_g \simeq 1{,}12$~eV).
+\end{abstract}
+
+% =====================================================================
+\section{Struttura del dispositivo}
+% =====================================================================
+
+Il tiristore è una struttura a quattro strati $p_1$--$n_1$--$p_2$--$n_2$ con tre
+giunzioni $J_1$, $J_2$, $J_3$ e tre terminali: anodo (A) sull'emettitore $p_1$,
+catodo (K) sull'emettitore $n_2$, gate (G) sulla base $p_2$.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \fill[pcol] (0,0) rectangle (2.5,2);
+  \fill[ncol] (2.5,0) rectangle (7,2);
+  \fill[pcol] (7,0) rectangle (9.5,2);
+  \fill[ncol] (9.5,0) rectangle (12,2);
+  \draw[thick] (0,0) rectangle (12,2);
+  \draw[thick] (2.5,0)--(2.5,2) (7,0)--(7,2) (9.5,0)--(9.5,2);
+  \node at (1.25,1.35) {$p_1$};  \node[font=\scriptsize] at (1.25,0.8) {$\sim 10^{19}\,\mathrm{cm^{-3}}$};
+  \node at (4.75,1.35) {$n_1$};  \node[font=\scriptsize] at (4.75,0.8) {$\sim 10^{13}\,\mathrm{cm^{-3}}$ (base larga)};
+  \node at (8.25,1.35) {$p_2$};  \node[font=\scriptsize] at (8.25,0.8) {$\sim 10^{17}\,\mathrm{cm^{-3}}$};
+  \node at (10.75,1.35) {$n_2$}; \node[font=\scriptsize] at (10.75,0.8) {$\sim 10^{19}\,\mathrm{cm^{-3}}$};
+  \node[font=\small] at (2.5,2.3) {$J_1$};
+  \node[font=\small] at (7,2.3)   {$J_2$};
+  \node[font=\small] at (9.5,2.3) {$J_3$};
+  \draw[very thick] (0,1)--(-1,1) node[left] {A};
+  \draw[very thick] (12,1)--(13,1) node[right] {K};
+  \draw[very thick] (8.25,0)--(8.25,-1) node[below] {G};
+\end{tikzpicture}
+\caption{Struttura $p$--$n$--$p$--$n$ e livelli di drogaggio tipici di un tiristore
+di potenza per controllo di fase.}
+\end{figure}
+
+Il ruolo dei singoli strati:
+\begin{itemize}\itemsep2pt
+  \item $p_1$ ed $n_2$ sono \emph{emettitori} fortemente drogati: iniettano
+        rispettivamente lacune ed elettroni con alta efficienza;
+  \item $n_1$ è la \emph{base larga} debolmente drogata: è lo strato che sostiene
+        la tensione di blocco e che, in conduzione, viene invaso dal plasma
+        elettroni--lacune;
+  \item $p_2$ è la \emph{base di controllo}, collegata al gate.
+\end{itemize}
+
+% =====================================================================
+\section{Livello di Fermi e quasi-livelli di Fermi}
+% =====================================================================
+
+All'equilibrio termodinamico le concentrazioni di portatori sono legate a un
+\emph{unico} livello di Fermi $E_F$:
+\begin{equation}
+n = n_i \exp\!\left(\frac{E_F-E_i}{kT}\right),\qquad
+p = n_i \exp\!\left(\frac{E_i-E_F}{kT}\right),\qquad
+np = n_i^2 .
+\end{equation}
+La condizione di equilibrio è $\nabla E_F = 0$: \textbf{il livello di Fermi è una
+retta orizzontale su tutto il dispositivo}. Le bande $E_C$ ed $E_V$ si piegano in
+corrispondenza delle giunzioni proprio perché $E_F$ deve restare piatto: la
+piegatura corrisponde al potenziale di built-in
+\begin{equation}
+V_{bi}=\frac{kT}{q}\,\ln\!\left(\frac{N_A N_D}{n_i^2}\right).
+\end{equation}
+
+Fuori equilibrio elettroni e lacune non sono più in equilibrio tra loro e servono
+due potenziali elettrochimici distinti, i \emph{quasi-livelli di Fermi} $E_{Fn}$
+ed $E_{Fp}$ (imref):
+\begin{equation}
+n = n_i \exp\!\left(\frac{E_{Fn}-E_i}{kT}\right),\qquad
+p = n_i \exp\!\left(\frac{E_i-E_{Fp}}{kT}\right),\qquad
+np = n_i^2 \exp\!\left(\frac{E_{Fn}-E_{Fp}}{kT}\right).
+\end{equation}
+Due relazioni sono essenziali per leggere i diagrammi che seguono:
+\begin{equation}
+\boxed{\;J_n = \mu_n\,n\,\nabla E_{Fn}\;,\qquad J_p = \mu_p\,p\,\nabla E_{Fp}\;}
+\label{eq:corrente}
+\end{equation}
+cioè \emph{la corrente scorre solo dove il quasi-livello di Fermi ha pendenza};
+e la separazione dei quasi-livelli dice se localmente c'è iniezione
+($E_{Fn}>E_{Fp}$, $np>n_i^2$) o svuotamento ($E_{Fn}<E_{Fp}$, $np<n_i^2$).
+Infine, la tensione applicata ai morsetti è la differenza dei livelli di Fermi
+dei due contatti:
+\begin{equation}
+qV_{AK} = E_F(\mathrm{K}) - E_F(\mathrm{A}).
+\end{equation}
+
+% =====================================================================
+\section{Tiristore a riposo: equilibrio termodinamico ($V_{AK}=0$)}
+% =====================================================================
+
+Con i morsetti in cortocircuito non circola corrente: $E_F$ è unico e piatto.
+Le tre giunzioni sono tutte all'equilibrio e presentano ciascuna la propria
+barriera di built-in. Il profilo delle bande è quello di figura~\ref{fig:eq}:
+scendono attraversando $J_1$ ($p_1 \to n_1$), risalgono attraversando $J_2$
+($n_1 \to p_2$) e riscendono attraversando $J_3$ ($p_2 \to n_2$).
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=2cm]
+  \bandbg{-1.35}{1.25}
+  % banda di conduzione
+  \draw[ccol,very thick]
+    (0,1.07) -- (2.15,1.07) .. controls (2.5,1.07) and (2.5,0.30) .. (2.85,0.30)
+    -- (6.60,0.30) .. controls (7,0.30) and (7,0.92) .. (7.40,0.92)
+    -- (9.15,0.92) .. controls (9.5,0.92) and (9.5,0.05) .. (9.85,0.05)
+    -- (12,0.05);
+  % banda di valenza
+  \draw[vcol,very thick]
+    (0,-0.05) -- (2.15,-0.05) .. controls (2.5,-0.05) and (2.5,-0.82) .. (2.85,-0.82)
+    -- (6.60,-0.82) .. controls (7,-0.82) and (7,-0.20) .. (7.40,-0.20)
+    -- (9.15,-0.20) .. controls (9.5,-0.20) and (9.5,-1.07) .. (9.85,-1.07)
+    -- (12,-1.07);
+  % livello di Fermi
+  \draw[black,thick,dashed] (0,0) -- (12,0);
+  \node[anchor=south,font=\small,ccol] at (3.6,0.30) {$E_C$};
+  \node[anchor=north,font=\small]      at (3.6,0.00) {$E_F$};
+  \node[anchor=north,font=\small,vcol] at (3.6,-0.82) {$E_V$};
+  \draw[<->,>=Stealth] (5.6,0.30) -- (5.6,-0.82)
+        node[midway,fill=white,inner sep=1pt,font=\scriptsize] {$E_g$};
+  \draw[<->,>=Stealth,gray] (7.05,0.30) -- (7.05,0.92)
+        node[midway,right=2pt,fill=white,inner sep=1pt,font=\scriptsize] {$qV_{bi,J_2}$};
+\end{tikzpicture}
+\caption{Diagramma a bande all'equilibrio ($V_{AK}=0$). Il livello di Fermi è unico
+e orizzontale; le bande si piegano alle tre giunzioni. Figura qualitativa, non in scala.}
+\label{fig:eq}
+\end{figure}
+
+\noindent
+Da \eqref{eq:corrente}: $E_F$ piatto $\Rightarrow$ $J_n=J_p=0$. In ogni giunzione
+la corrente di diffusione è esattamente compensata da quella di deriva.
+
+% =====================================================================
+\section{Stato di blocco diretto ($V_{AK}>0$, gate aperto)}
+% =====================================================================
+
+Applicando l'anodo positivo, $J_1$ e $J_3$ risultano polarizzate direttamente
+mentre $J_2$ è polarizzata inversamente. Poiché la corrente che può circolare
+è limitata dalla giunzione inversa, quasi tutta la tensione applicata cade su
+$J_2$: le due giunzioni dirette restano a poche decine di millivolt.
+
+La regione di carica spaziale di $J_2$ si estende quasi esclusivamente nella base
+$n_1$, che è debolmente drogata: è questo il motivo per cui $n_1$ deve essere
+larga (centinaia di $\mu$m) in un dispositivo da kV.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1.55cm]
+  \bandbg{-2.45}{1.15}
+  \fill[black,opacity=0.06] (5.4,-2.45) rectangle (7.35,1.15);
+  % banda di conduzione
+  \draw[ccol,very thick]
+    (0,-0.33) -- (2.15,-0.33) .. controls (2.5,-0.33) and (2.5,-1.10) .. (2.85,-1.10)
+    -- (5.40,-1.10) .. controls (6.40,-1.10) and (6.90,0.92) .. (7.35,0.92)
+    -- (9.15,0.92) .. controls (9.5,0.92) and (9.5,0.05) .. (9.85,0.05)
+    -- (12,0.05);
+  % banda di valenza
+  \draw[vcol,very thick]
+    (0,-1.45) -- (2.15,-1.45) .. controls (2.5,-1.45) and (2.5,-2.22) .. (2.85,-2.22)
+    -- (5.40,-2.22) .. controls (6.40,-2.22) and (6.90,-0.20) .. (7.35,-0.20)
+    -- (9.15,-0.20) .. controls (9.5,-0.20) and (9.5,-1.07) .. (9.85,-1.07)
+    -- (12,-1.07);
+  % quasi-livelli di Fermi
+  \draw[fncol,thick,dashed]
+    (0,-1.40) -- (7.30,-1.40) .. controls (7.80,-1.40) and (7.90,0) .. (8.40,0) -- (12,0);
+  \draw[fpcol,thick,dash dot]
+    (12,0) -- (5.60,0) .. controls (5.10,0) and (5.00,-1.40) .. (4.50,-1.40) -- (0,-1.40);
+  \node[anchor=south,font=\small,ccol] at (3.6,-1.10) {$E_C$};
+  \node[anchor=north,font=\small,vcol] at (3.6,-2.22) {$E_V$};
+  \node[anchor=south,font=\small,fncol] at (9.9,0.02) {$E_{Fn}$};
+  \node[anchor=north,font=\small,fpcol] at (2.6,-1.42) {$E_{Fp}$};
+  \draw[<->,>=Stealth] (6.0,-1.40) -- (6.0,0)
+        node[pos=0.88,fill=white,inner sep=1pt,font=\scriptsize] {$qV_{AK}$};
+  \node[font=\scriptsize,align=center] at (6.35,-2.15) {zona di\\svuotamento};
+\end{tikzpicture}
+\caption{Blocco diretto: $J_2$ è polarizzata inversamente e sostiene tutta la tensione.
+I quasi-livelli di Fermi si separano di $qV_{AK}$ attraverso la zona svuotata, con
+$E_{Fn}<E_{Fp}$ ($np<n_i^2$: generazione netta).}
+\label{fig:blocco}
+\end{figure}
+
+\noindent
+Osservazioni sulla figura~\ref{fig:blocco}:
+\begin{itemize}\itemsep2pt
+  \item $E_{Fn}$ è agganciato al contatto d'anodo, $E_{Fp}$ a quello di catodo;
+        la loro separazione nella zona svuotata vale esattamente $qV_{AK}$;
+  \item essendo $E_{Fn}<E_{Fp}$ si ha $np<n_i^2$: nella zona svuotata prevale la
+        \emph{generazione} termica (Shockley--Read--Hall), che produce la corrente
+        di fuga $I_{D}$ del dispositivo, fortemente dipendente dalla temperatura;
+  \item entrambi i quasi-livelli sono quasi piatti nelle regioni neutre: lì la
+        corrente è piccola, coerentemente con \eqref{eq:corrente}.
+\end{itemize}
+
+\subsection{Modello a due transistor}
+
+La struttura a quattro strati si interpreta come due transistor bipolari
+accoppiati: $Q_1$ ($p_1n_1p_2$, pnp, guadagno $\alpha_1$) e $Q_2$ ($n_1p_2n_2$,
+npn, guadagno $\alpha_2$), ciascuno che alimenta la base dell'altro.
+
+\begin{figure}[h]
+\centering
+\begin{circuitikz}[scale=1.0,transform shape]
+  \draw (0,0.8)  node[pnp,xscale=-1] (Q1) {};
+  \draw (2.2,-0.8) node[npn] (Q2) {};
+  \node[font=\small] at (-0.9,0.8) {$Q_1$ (pnp), $\alpha_1$};
+  \node[font=\small] at (3.4,-0.8) {$Q_2$ (npn), $\alpha_2$};
+  \draw (Q1.E) -- (0,2.0) node[above] {A};
+  \draw (Q2.E) -- (2.2,-2.4) node[below] {K};
+  \draw (Q1.C) -- (0,-0.8) -- (Q2.B);
+  \draw (Q2.C) -- (2.2,0.8) -- (Q1.B);
+  \draw (0.85,-0.8) node[circle,fill,inner sep=1pt]{} -- (0.85,-2.0) node[below] {G};
+\end{circuitikz}
+\caption{Modello a due transistor accoppiati. La base $n_1$ di $Q_1$ è il
+collettore di $Q_2$ e viceversa.}
+\end{figure}
+
+Imponendo la continuità della corrente si ottiene
+\begin{equation}
+I_A=\frac{\alpha_2 I_G + I_{CO1}+I_{CO2}}{1-(\alpha_1+\alpha_2)} .
+\label{eq:duetr}
+\end{equation}
+Finché $\alpha_1+\alpha_2 \ll 1$ il dispositivo blocca. Nei tiristori i guadagni
+$\alpha$ crescono con la corrente (per bassa iniezione l'efficienza di emettitore
+e il fattore di trasporto sono ridotti), quindi la condizione
+$\alpha_1+\alpha_2 \to 1$ è raggiungibile aumentando la corrente di gate.
+
+% =====================================================================
+\section{Innesco}
+% =====================================================================
+
+La sequenza fisica dell'innesco, letta sulle bande:
+\begin{enumerate}\itemsep2pt
+  \item la corrente di gate inietta lacune in $p_2$, che polarizza direttamente
+        $J_3$;
+  \item l'emettitore $n_2$ inietta elettroni in $p_2$; questi diffondono e vengono
+        \emph{raccolti} dal campo di $J_2$, che li accelera nella base $n_1$;
+  \item gli elettroni accumulati in $n_1$ abbassano il potenziale della base e
+        polarizzano direttamente $J_1$: l'emettitore $p_1$ inietta lacune;
+  \item le lacune attraversano $n_1$, raggiungono $p_2$ e sostengono
+        ulteriormente l'iniezione di $J_3$: la retroazione è positiva.
+\end{enumerate}
+Quando $\alpha_1+\alpha_2=1$ il denominatore di \eqref{eq:duetr} si annulla: la
+corrente non è più determinata dal dispositivo ma dal circuito esterno, e il gate
+perde il controllo. In termini di diagramma a bande, la barriera di $J_2$ si
+abbassa progressivamente man mano che la base $n_1$ si riempie di plasma, finché
+il massimo di $E_C$ in corrispondenza di $J_2$ scompare del tutto.
+
+Perché lo stato di conduzione si mantenga occorre che la corrente superi la
+corrente di aggancio $I_L$ (latching) durante l'innesco e resti sopra la corrente
+di mantenimento $I_H$ (holding) durante la conduzione.
+
+% =====================================================================
+\section{Stato di conduzione}
+% =====================================================================
+
+In conduzione \textbf{tutte e tre le giunzioni sono polarizzate direttamente}.
+La base $n_1$ è invasa da un plasma quasi neutro con $n \simeq p \gg N_D$
+(alta iniezione): la sua resistività crolla di ordini di grandezza rispetto al
+valore di equilibrio. È la \emph{modulazione della conducibilità}, che consente a
+uno strato spesso e poco drogato di condurre migliaia di ampere con una caduta di
+1--2~V.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=2.5cm]
+  \bandbg{-1.30}{0.72}
+  % banda di conduzione
+  \draw[ccol,very thick]
+    (0,0.45) -- (2.15,0.45) .. controls (2.5,0.45) and (2.5,0.25) .. (2.85,0.25)
+    -- (6.60,0.25) .. controls (7,0.25) and (7,0.35) .. (7.40,0.35)
+    -- (9.15,0.35) .. controls (9.5,0.35) and (9.5,0.05) .. (9.85,0.05)
+    -- (12,0.05);
+  % banda di valenza
+  \draw[vcol,very thick]
+    (0,-0.67) -- (2.15,-0.67) .. controls (2.5,-0.67) and (2.5,-0.87) .. (2.85,-0.87)
+    -- (6.60,-0.87) .. controls (7,-0.87) and (7,-0.77) .. (7.40,-0.77)
+    -- (9.15,-0.77) .. controls (9.5,-0.77) and (9.5,-1.07) .. (9.85,-1.07)
+    -- (12,-1.07);
+  % quasi-livelli di Fermi
+  \draw[fncol,thick,dashed]
+    (12,0) -- (2.90,0) .. controls (2.40,0) and (2.30,-0.62) .. (1.80,-0.62) -- (0,-0.62);
+  \draw[fpcol,thick,dash dot]
+    (0,-0.62) -- (9.90,-0.62) .. controls (10.40,-0.62) and (10.50,0) .. (11.00,0) -- (12,0);
+  % plasma
+  \foreach \x in {3.4,4.1,4.8,5.5,6.2} {
+    \fill[ccol] (\x,0.16) circle (1.1pt);
+    \draw[vcol] (\x+0.25,-0.78) circle (1.1pt);
+  }
+  \node[anchor=south,font=\small,ccol] at (3.3,0.25) {$E_C$};
+  \node[anchor=north,font=\small,vcol] at (3.3,-0.87) {$E_V$};
+  \node[anchor=south,font=\small,fncol] at (8.3,0.01) {$E_{Fn}$};
+  \node[anchor=north,font=\small,fpcol] at (8.3,-0.63) {$E_{Fp}$};
+  \draw[<->,>=Stealth] (7.6,0) -- (7.6,-0.62)
+        node[midway,fill=white,inner sep=1pt,font=\scriptsize] {$E_{Fn}\!-\!E_{Fp}$};
+\end{tikzpicture}
+\caption{Stato di conduzione: le barriere sono quasi annullate, $E_{Fn}$ è agganciato
+al catodo ed $E_{Fp}$ all'anodo. Nella base $n_1$ i due quasi-livelli sono separati e
+vicini alle rispettive bande: $np \gg n_i^2$, plasma di elettroni ($\bullet$) e
+lacune ($\circ$).}
+\label{fig:on}
+\end{figure}
+
+\noindent
+Come leggere la figura~\ref{fig:on}:
+\begin{itemize}\itemsep2pt
+  \item $E_{Fn}$ resta praticamente piatto dal catodo fino a $p_1$ e $E_{Fp}$
+        dall'anodo fino a $n_2$: ciascun tipo di portatore attraversa quasi tutto
+        il dispositivo come portatore \emph{minoritario} in eccesso;
+  \item nella base la separazione $E_{Fn}-E_{Fp}$ è grande e le distanze
+        $E_C-E_{Fn}$ ed $E_{Fp}-E_V$ sono piccole e confrontabili: è la firma
+        dell'alta iniezione ambipolare;
+  \item la lieve pendenza dei quasi-livelli nella base rappresenta la caduta
+        ohmica residua sul plasma;
+  \item il massimo di $E_C$ a $J_2$ è scomparso: la giunzione di blocco non è più
+        tale.
+\end{itemize}
+
+La tensione ai morsetti è la somma algebrica delle tre cadute di giunzione più il
+termine resistivo. Poiché $J_2$ è orientata in senso opposto a $J_1$ e $J_3$:
+\begin{equation}
+V_T = V_{J_1} - V_{J_2} + V_{J_3} + R_{\text{mod}} I_A \;\simeq\; 1\div 2~\text{V}.
+\end{equation}
+Questo spiega perché la caduta di un tiristore in conduzione è maggiore di quella
+di un diodo ma molto minore della somma di tre giunzioni.
+
+% =====================================================================
+\section{Blocco inverso e spegnimento}
+% =====================================================================
+
+Con $V_{AK}<0$ le giunzioni $J_1$ e $J_3$ sono polarizzate inversamente. $J_3$ ha
+entrambi i lati fortemente drogati e va in valanga a poche decine di volt: è
+quindi $J_1$, affacciata sulla base $n_1$, a sostenere la tensione inversa. Il
+diagramma è speculare a quello di figura~\ref{fig:blocco}, con la zona svuotata
+che si estende da $J_1$ verso destra e $E_{Fp}$ agganciato all'anodo, più basso
+di $E_{Fn}$.
+
+Lo spegnimento richiede due fasi distinte, entrambe visibili nel quadro a bande:
+\begin{enumerate}\itemsep2pt
+  \item \textbf{rimozione del plasma}. La carica immagazzinata nella base $n_1$
+        deve essere estratta dalla corrente inversa e/o ricombinare con costante
+        di tempo pari alla vita media $\tau$ dei portatori. È l'origine della
+        carica di recupero inverso $Q_{rr}$ e del picco $I_{RM}$.
+  \item \textbf{recupero della barriera di $J_2$}. Solo quando la concentrazione
+        residua nella base è scesa abbastanza i quasi-livelli tornano a
+        riseparare $E_{Fn}<E_{Fp}$ attorno a $J_2$ e la giunzione ricostruisce la
+        propria zona svuotata. Il tempo necessario è il \emph{tempo di spegnimento
+        del circuito} $t_q$: se si riapplica tensione diretta prima di $t_q$, la
+        carica residua riporta $\alpha_1+\alpha_2$ a 1 e il dispositivo si
+        riaccende senza comando di gate.
+\end{enumerate}
+Questa è la ragione fisica per cui un modello circuitale accurato del tiristore
+non può limitarsi alla caratteristica statica, ma deve includere una dinamica di
+carica (per esempio del tipo a carica concentrata di Lauritzen--Ma), con la vita
+media $\tau$ e il tempo di transito come parametri.
+
+% =====================================================================
+\section{Riepilogo}
+% =====================================================================
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lccccl@{}}
+\toprule
+Stato & $J_1$ & $J_2$ & $J_3$ & Livelli di Fermi & Caduta \\
+\midrule
+Equilibrio        & --      & --      & --      & $E_F$ unico e piatto & $0$ \\
+Blocco diretto    & diretta & inversa & diretta & $E_{Fn}<E_{Fp}$ su $J_2$ & tutta su $J_2$ \\
+Blocco inverso    & inversa & diretta & inversa & $E_{Fp}<E_{Fn}$ su $J_1$ & tutta su $J_1$ \\
+Conduzione        & diretta & diretta & diretta & $E_{Fn}>E_{Fp}$ nella base & $1\div2$~V \\
+\bottomrule
+\end{tabular}
+\caption{Sintesi degli stati operativi.}
+\end{table}
+
+\paragraph{Regola di lettura.} Un solo livello di Fermi piatto significa equilibrio
+e corrente nulla. Due quasi-livelli separati con $E_{Fn}<E_{Fp}$ significano
+svuotamento e generazione: il dispositivo blocca. Due quasi-livelli separati con
+$E_{Fn}>E_{Fp}$ significano iniezione e ricombinazione: il dispositivo conduce.
+
+% =====================================================================
+\section*{Riferimenti essenziali}
+\begin{itemize}\itemsep1pt
+  \item B.\,J. Baliga, \emph{Fundamentals of Power Semiconductor Devices},
+        Springer, cap.\ sui tiristori.
+  \item S.\,M. Sze, K.\,K. Ng, \emph{Physics of Semiconductor Devices},
+        Wiley, cap.\ ``Thyristors''.
+  \item J. Lutz et al., \emph{Semiconductor Power Devices}, Springer.
+  \item P.\,O. Lauritzen, C.\,L. Ma, ``A simple diode model with reverse recovery'',
+        \emph{IEEE Trans.\ Power Electron.}, 1991.
+\end{itemize}
+
+\end{document}

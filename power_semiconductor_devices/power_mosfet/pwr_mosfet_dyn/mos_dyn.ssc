@@ -1,0 +1,172 @@
+component mos_dyn
+% Power MOSFET (switching dynamics) : 1.5
+% Switching-transient model of a power MOSFET (Si or SiC). No losses,
+% no thermal port: the purpose is the waveform shape (dv/dt, di/dt,
+% Miller plateau, body-diode recovery, ringing) for snubber and gate
+% resistor studies.
+%
+% Contents:
+%   - symmetric square-law channel: conducts in both quadrants, so
+%     synchronous rectification and dead-time behaviour are reproduced;
+%   - nonlinear Cgd (Miller) with oxide clamp for vgd < 0, nonlinear
+%     Cds (junction), constant Cgs;
+%   - intrinsic body diode with Lauritzen-Ma charge dynamics: Irr and
+%     trr emerge from the circuit di/dt, they are not imposed;
+%   - internal gate resistance Rg, drain lead Rd + Ld, common-source
+%     inductance Ls (the -Ls*di/dt term feeds back into the gate loop);
+%   - optional avalanche clamp above BV.
+%
+% IMPORTANT: Cds IS the body-diode depletion capacitance. The diode
+% block below therefore carries only the diffusion charge, otherwise
+% the junction capacitance would be counted twice.
+%
+% Fitting hints (datasheet, hot curves):
+%   Vth, Kp  : transfer characteristic, Id = Kp/2*(Vgs - Vth)^2
+%              (fit near the rated current, not near threshold)
+%   Rd       : Rds(on) - 1/(Kp*(Vgs_on - Vth))
+%   Cgs      : Ciss - Crss at high Vds
+%   Cgd0,mg  : fit Crss(Vds); Cgd0 = Crss at Vds ~ 0
+%   Cds0,md  : fit Coss(Vds) - Crss(Vds)
+%   taud,TM  : from Qrr, Irr at a given di/dt = a
+%              t_tail = Qrr/Irr - Irr/(2*a)
+%              taud   = t_tail + Irr/a
+%              TM     = taud*t_tail*a/Irr
+%   Is,N,Rsd : body-diode forward drop at rated current
+
+nodes
+    G = foundation.electrical.electrical; % G
+    D = foundation.electrical.electrical; % D
+    S = foundation.electrical.electrical; % S
+end
+
+annotations
+    G : Side = left;
+    D : Side = right;
+    S : Side = right;
+end
+
+nodes(Access = private)
+    gi = foundation.electrical.electrical; % internal gate node
+    di = foundation.electrical.electrical; % internal drain node
+    si = foundation.electrical.electrical; % internal source node
+end
+
+parameters
+    % --- channel -------------------------------------------------------
+    Vth   = {5.0,    'V'    }; % Gate threshold voltage, Vth
+    Kp    = {30,     'A/V^2'}; % Transconductance parameter, Kp
+    lam   = {0,      '1/V'  }; % Channel-length modulation, lambda
+    % --- resistive / inductive parasitics -------------------------------
+    Rd    = {2e-3,   'Ohm'  }; % Drift (drain) resistance, Rd
+    Rg    = {1,      'Ohm'  }; % Internal gate resistance, Rg
+    Ld    = {10e-9,  'H'    }; % Drain lead inductance, Ld
+    Ls    = {5e-9,   'H'    }; % Common-source inductance, Ls
+    % --- capacitances ---------------------------------------------------
+    Cgs   = {20e-9,  'F'};   % Gate-source capacitance, Cgs
+    Cgd0  = {6e-9,   'F'};   % Miller capacitance at vgd = 0, Cgd0
+    Vjg   = {5,      'V'};   % Miller junction potential, Vjg
+    mg    = {1.5,    '1'};   % Miller grading coefficient, mg
+    Cds0  = {40e-9,  'F'};   % Drain-source capacitance at 0 V, Cds0
+    Vjd   = {8,      'V'};   % Drain-source junction potential, Vjd
+    md    = {0.5,    '1'};   % Drain-source grading coefficient, md
+    % --- body diode (diffusion charge only) ------------------------------
+    Is    = {1e-14,  'A'};   % Body-diode saturation current, Is
+    N     = {2.5,    '1'};   % Body-diode emission coefficient, N
+    Vt    = {25.9e-3,'V'};   % Thermal voltage, Vt
+    Rsd   = {2.5e-3, 'Ohm'}; % Body-diode series resistance, Rsd
+    taud  = {17e-9,  's'};   % Carrier lifetime, tau
+    TM    = {3.2e-9, 's'};   % Charge transit time, TM
+    Goff  = {1e-9,   'S'};   % Body-diode off-state conductance, Goff
+    Vlin  = {3.5,    'V'};   % Exponential linearisation voltage, Vlin
+    % --- avalanche clamp --------------------------------------------------
+    BV    = {1e5,    'V'};   % Avalanche breakdown voltage, BV
+    Gav   = {50,     'S'};   % Avalanche conductance, Gav
+    % --- numerics ----------------------------------------------------------
+    Vsm   = {50e-3,  'V'};   % Smoothing voltage, Vsm
+end
+
+variables
+    i_g   = {0, 'A'}; % gate lead current
+    i_dd  = {0, 'A'}; % drain lead current
+    i_ss  = {0, 'A'}; % source lead current
+    i_ch  = {0, 'A'}; % channel current
+    i_bd  = {0, 'A'}; % body-diode current
+    i_gs  = {0, 'A'}; % Cgs current
+    i_gd  = {0, 'A'}; % Cgd current
+    i_ds  = {0, 'A'}; % Cds current
+    i_av  = {0, 'A'}; % avalanche current
+    vgs   = {0, 'V'}; % internal gate-source voltage
+    vgd   = {0, 'V'}; % internal gate-drain voltage
+    vds   = {0, 'V'}; % internal drain-source voltage
+    qE    = {0, 'C'}; % junction (boundary) charge
+    qM    = {0, 'C'}; % total stored charge
+end
+
+branches
+    i_g  : G.i  -> gi.i;
+    i_dd : D.i  -> di.i;
+    i_ss : si.i -> S.i;
+    i_ch : di.i -> si.i;
+    i_bd : si.i -> di.i;
+    i_gs : gi.i -> si.i;
+    i_gd : gi.i -> di.i;
+    i_ds : di.i -> si.i;
+    i_av : di.i -> si.i;
+end
+
+intermediates
+    % --- smooth helpers --------------------------------------------------
+    % smooth positive part: sp(x) -> x for x >> 0, -> 0 for x << 0
+    spv   = 0.5*((vgs - Vth) + sqrt((vgs - Vth)^2 + Vsm^2));   % forward overdrive
+    spr   = 0.5*((vgd - Vth) + sqrt((vgd - Vth)^2 + Vsm^2));   % reverse overdrive
+    vdsa  = sqrt(vds^2 + Vsm^2);                                % smooth |vds|
+    % --- bias-dependent capacitances -------------------------------------
+    % depletion law, clamped to the zero-bias (oxide) value for v < 0
+    vgdp  = 0.5*(vgd + sqrt(vgd^2 + Vsm^2));
+    vdsp  = 0.5*(vds + sqrt(vds^2 + Vsm^2));
+    Cgd   = Cgd0/(1 + vgdp/Vjg)^mg;
+    Cds   = Cds0/(1 + vdsp/Vjd)^md;
+    % --- body diode -------------------------------------------------------
+    vj    = -vds - Rsd*i_bd;          % junction voltage (anode = source)
+    x     = vj/(N*Vt);                % normalised
+    xl    = Vlin/(N*Vt);
+    xs    = xl - 0.5*((xl - x) + sqrt((xl - x)^2 + 1e-4));  % smooth min(x,xl)
+    ex    = exp(xs)*(1 + (x - xs));   % exp, linearised above Vlin
+end
+
+equations
+    % --- across variables --------------------------------------------------
+    vgs == gi.v - si.v;
+    vgd == gi.v - di.v;
+    vds == di.v - si.v;   % dependent on the two above: Simscape reduces the
+                          % index, but the variable must be declared so that
+                          % the number of differential equations and of
+                          % differential variables match (3 capacitors).
+
+    % --- leads --------------------------------------------------------------
+    G.v  - gi.v == Rg*i_g;
+    D.v  - di.v == Rd*i_dd + Ld*der(i_dd);
+    si.v - S.v  == Ls*der(i_ss);
+
+    % --- MOS channel, symmetric square law -----------------------------------
+    % i_ch = Kp/2*[ <vgs-Vth>^2 - <vgd-Vth>^2 ]
+    %   forward saturation : vgd < Vth  ->  Kp/2*(vgs-Vth)^2
+    %   forward triode     :               Kp*[(vgs-Vth)*vds - vds^2/2]
+    %   reverse (vds < 0)  : sign reverses automatically
+    i_ch == Kp/2*(spv^2 - spr^2)*(1 + lam*vdsa);
+
+    % --- displacement currents ------------------------------------------------
+    i_gs == Cgs*der(vgs);
+    i_gd == Cgd*der(vgd);
+    i_ds == Cds*der(vds);
+
+    % --- body diode, Lauritzen-Ma diffusion charge -----------------------------
+    qE   == Is*taud*(ex - 1);
+    i_bd == (qE - qM)/TM + Goff*vj;
+    der(qM) == (qE - qM)/TM - qM/taud;
+
+    % --- avalanche clamp -------------------------------------------------------
+    i_av == Gav*0.5*((vds - BV) + sqrt((vds - BV)^2 + Vsm^2));
+end
+
+end

@@ -1,0 +1,472 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{array}
+
+\newcommand{\ud}{\mathrm{d}}
+\newcommand{\ssc}[1]{\texttt{#1}}
+
+\title{Modelli Simscape per la dinamica di commutazione:\\
+\ssc{diode\_rr} e \ssc{igbt\_dyn}}
+\author{}
+\date{Luglio 2026 --- rev.\ 1.1}
+
+\begin{document}
+\maketitle
+
+\section{Introduzione e scopo}
+
+I due componenti descritti in questo documento servono allo studio dei
+transitori di accensione e spegnimento di una cella di commutazione a
+IGBT: sovratensione allo spegnimento, reverse recovery del diodo di
+ricircolo, ringing con le induttanze parassite di loop, e quindi il
+dimensionamento di eventuali snubber. Non calcolano perdite e non hanno
+dipendenza dalla temperatura: tutti i parametri vanno estratti dalle
+curve del datasheet alle condizioni di interesse (tipicamente le curve a
+caldo, $125\,^{\circ}\mathrm{C}$ o $150\,^{\circ}\mathrm{C}$).
+
+Il diodo di ricircolo \`e un componente separato (\ssc{diode\_rr}) da
+affiancare esternamente all'IGBT (\ssc{igbt\_dyn}); questo permette di
+usare gli stessi blocchi in configurazione chopper, half-bridge o double
+pulse test senza duplicare il modello.
+
+Entrambi i componenti sono scritti in linguaggio Simscape in forma
+completamente continua ($C^1$), senza \emph{if/else} n\'e eventi: le non
+linearit\`a a tratti sono sostituite da raccordi smooth
+(sez.~\ref{sec:smooth}). Questo riduce gli zero crossing e rende il
+modello adatto ai solver a passo variabile.
+
+\section{Funzioni di regolarizzazione numerica}
+\label{sec:smooth}
+
+Tutte le funzioni a tratti sono costruite a partire dalla \emph{parte
+positiva regolarizzata}
+\begin{equation}
+p_\delta(x) \;=\; \tfrac{1}{2}\left(x + \sqrt{x^2 + \delta^2}\right)
+\;\approx\; \max(x,\,0),
+\label{eq:softplus}
+\end{equation}
+che \`e $C^\infty$, coincide con $\max(x,0)$ per $|x|\gg\delta$ e vale
+$\delta/2$ in $x=0$. Da questa si ottengono
+\begin{align}
+\min\nolimits_\delta(a,b) &= \tfrac{1}{2}\left(a+b-\sqrt{(a-b)^2+\delta^2}\right),\\
+\min\nolimits_\delta(x,\,x_{\max}) &= x_{\max} - p_\delta(x_{\max}-x).
+\label{eq:smoothmin}
+\end{align}
+Il parametro $\delta$ (nei componenti: \ssc{dsm}) fissa la larghezza
+della zona di raccordo; il default \`e $10\,$mV per il diodo e
+$0{,}1\,$V per l'IGBT, trascurabili rispetto alle escursioni di tensione
+in gioco. Se il solver fatica, allargare \ssc{dsm} \`e il primo
+intervento da provare, prima di toccare le tolleranze.
+
+\paragraph{Esponenziale limitato.}
+Nelle iterazioni di Newton il solver valuta le equazioni anche in punti
+non fisici (ad esempio $v_j$ di decine di volt in diretta); l'esponenziale
+della legge di giunzione va in overflow, il residuo diventa \emph{NaN} e
+il passo fallisce. Per questo l'argomento dell'esponenziale \`e limitato
+in forma smooth,
+\begin{equation}
+x_e = \min\nolimits_\delta\!\left(\frac{v_j}{N V_T},\; 50\right),
+\end{equation}
+realizzato con la \eqref{eq:smoothmin}. Con $N=2$ e $V_T = 26\,$mV il
+clamp corrisponde a $v_j \approx 2{,}6\,$V, mai raggiunto in
+funzionamento normale: la protezione non altera i risultati.
+
+\paragraph{Valori nominali e scalatura del jacobiano.}
+Gli stati di carica (ordine $10^{-7}$--$10^{-4}\,$C) convivono nella
+stessa rete con tensioni e correnti di ordine $10^{2}$--$10^{3}$: senza
+riscalatura il jacobiano di Newton copre oltre dieci ordini di
+grandezza e pu\`o risultare mal condizionato, con errori del tipo
+\emph{nonlinear solver failed to converge due to Linear Algebra error}.
+Per questo tutte le variabili di carica dichiarano un valore
+\ssc{nominal} esplicito, e lo stato della corrente di coda dell'IGBT
+(sez.~\ref{sec:tail}) \`e tenuto direttamente in ampere anzich\'e come
+carica in coulomb.
+
+\section{Modello del diodo: \ssc{diode\_rr}}
+
+\subsection{Modello a controllo di carica di Lauritzen--Ma}
+
+Il modello \`e quello a due cariche concentrate di Lauritzen e Ma
+\cite{lauritzen1991}. La carica in eccesso nella regione di drift \`e
+rappresentata da due nodi: $q_E$, la carica al bordo della giunzione,
+imposta istantaneamente dalla legge di giunzione, e $q_M$, la carica
+immagazzinata al centro della regione. Tra i due nodi scorre una
+corrente di diffusione proporzionale al gradiente di carica; $q_M$
+decade per ricombinazione con la vita media $\tau$:
+\begin{align}
+i_{\mathrm{diff}} &= \frac{q_E - q_M}{T_M},
+\label{eq:lm1}\\[2pt]
+\frac{\ud q_M}{\ud t} &= \frac{q_E - q_M}{T_M} - \frac{q_M}{\tau},
+\label{eq:lm2}\\[2pt]
+q_E &= \tau\, I_s \left( e^{\,v_j/(N V_T)} - 1 \right).
+\label{eq:lm3}
+\end{align}
+$T_M$ \`e il tempo di transito per diffusione attraverso la regione di
+drift. La tensione ai morsetti e la corrente totale sono
+\begin{equation}
+v = v_j + R_s\, i,
+\qquad
+i = i_{\mathrm{diff}} + \frac{\ud q_j}{\ud t},
+\end{equation}
+con $q_j$ la carica di svuotamento (sez.~\ref{sec:depl}).
+
+\subsection{Regime stazionario}
+
+In continua la \eqref{eq:lm2} d\`a $q_M = \tau\, i$ e, sostituendo nella
+\eqref{eq:lm1},
+\begin{equation}
+i = \frac{\tau}{\tau + T_M}\, I_s
+\left( e^{\,v_j/(N V_T)} - 1 \right):
+\label{eq:static}
+\end{equation}
+la caratteristica statica \`e una legge esponenziale con corrente di
+saturazione efficace $I_s\,\tau/(\tau+T_M)$. Su questa curva, pi\`u la
+caduta $R_s i$, si fittano $I_s$, $N$ e $R_s$ dalla caratteristica
+diretta a caldo del datasheet.
+
+\subsection{Reverse recovery ed estrazione di $\tau$ e $T_M$}
+\label{sec:rr}
+
+Durante la commutazione il circuito esterno impone una rampa di corrente
+$i(t) = I_F - a\,t$ con $a = \ud i/\ud t$. Finch\'e la giunzione resta
+polarizzata direttamente ($q_E > 0$, fase di storage) il diodo \`e a
+bassa impedenza e la rampa prosegue anche sotto zero. Sostituendo
+$q_E - q_M = T_M\, i$ nella \eqref{eq:lm2},
+\begin{equation}
+\frac{\ud q_M}{\ud t} = i - \frac{q_M}{\tau},
+\end{equation}
+che con $i(t) = I_F - a t$ e condizione iniziale $q_M(0) = \tau I_F$ ha
+soluzione
+\begin{equation}
+q_M(t) = \tau\,(I_F - a t) + a \tau^2 \left(1 - e^{-t/\tau}\right).
+\end{equation}
+La fase di storage termina all'istante $t_s$ in cui $q_E = q_M + T_M i$
+si annulla, cio\`e quando la giunzione inverte la polarizzazione; in quel
+punto la corrente raggiunge il picco inverso $I_{rr} = a\,t_s - I_F$.
+Imponendo $q_M(t_s) = -T_M\, i(t_s)$ si ottiene, per $t_s \gg \tau$,
+\begin{equation}
+\boxed{\;I_{rr} \simeq \frac{a\,\tau^2}{\tau + T_M}.\;}
+\label{eq:irr}
+\end{equation}
+Dopo il picco $q_E \simeq 0$ e la \eqref{eq:lm2} diventa
+$\dot q_M = -q_M \left( 1/T_M + 1/\tau \right)$: corrente e carica
+decadono esponenzialmente (la coda del recovery) con costante di tempo
+\begin{equation}
+\boxed{\;\tau_{rr} = \frac{\tau\, T_M}{\tau + T_M}.\;}
+\label{eq:taurr}
+\end{equation}
+La carica di recovery \`e la somma del triangolo fino al picco e della
+coda:
+\begin{equation}
+Q_{rr} \simeq \frac{I_{rr}^2}{2a} + I_{rr}\,\tau_{rr}.
+\label{eq:qrr}
+\end{equation}
+
+Invertendo le \eqref{eq:irr}--\eqref{eq:qrr} si ottiene la procedura di
+estrazione in forma chiusa dai dati di targa ($I_{rr}$, $Q_{rr}$ a
+$\ud i/\ud t = a$, alla corrente e temperatura di riferimento):
+\begin{equation}
+\boxed{\;
+\tau_{rr} = \frac{Q_{rr}}{I_{rr}} - \frac{I_{rr}}{2a},
+\qquad
+\tau = \tau_{rr} + \frac{I_{rr}}{a},
+\qquad
+T_M = \frac{\tau\,\tau_{rr}\,a}{I_{rr}}.
+\;}
+\label{eq:extract}
+\end{equation}
+Verifica di consistenza: deve risultare $Q_{rr} > I_{rr}^2/(2a)$
+(altrimenti $\tau_{rr}<0$); il rapporto $\tau/T_M$ controlla la softness
+(coda lunga per $\tau \gg T_M$, recovery snappy per $\tau \lesssim T_M$).
+
+\paragraph{Limite del modello.}
+Nella \eqref{eq:irr} $I_{rr}$ cresce linearmente con $a$ ed \`e
+indipendente da $I_F$ (per $t_s \gg \tau$); nel dispositivo reale la
+crescita con $a$ \`e sublineare e c'\`e una dipendenza debole da $I_F$.
+I parametri estratti valgono quindi \emph{attorno al punto di lavoro}
+usato per l'estrazione: conviene tarare su $I_F$ e $\ud i/\ud t$
+rappresentativi della commutazione che si vuole studiare.
+
+\subsection{Capacit\`a di svuotamento}
+\label{sec:depl}
+
+Dopo il recovery la giunzione si polarizza inversamente e la dinamica
+\`e dominata dalla capacit\`a di svuotamento, che insieme all'induttanza
+di loop determina il ringing e il $\ud v/\ud t$ sul diodo. Si usa la
+convenzione SPICE \cite{massobrio}:
+\begin{equation}
+C_j(v_j) = \frac{C_{j0}}{\left(1 - v_j/V_j\right)^{m}},
+\qquad
+q_j(v_j) = \frac{C_{j0} V_j}{1-m}
+\left[ 1 - \left(1 - \frac{v_j}{V_j}\right)^{1-m} \right].
+\end{equation}
+La formula diverge per $v_j \to V_j$; come in SPICE, sopra
+$v_j = F_C\, V_j$ (con $F_C = 0{,}5$) la si sostituisce con capacit\`a
+costante $C_{FC} = C_{j0}/(1-F_C)^m$, cio\`e con l'estensione lineare
+della carica. Nell'implementazione questo \`e realizzato senza
+discontinuit\`a con il clamp smooth
+$v_{jc} = \min_\delta(v_j,\, F_C V_j)$ e
+\begin{equation}
+q_j = \frac{C_{j0} V_j}{1-m}
+\left[ 1 - \left(1 - \frac{v_{jc}}{V_j}\right)^{1-m} \right]
++ C_{FC}\,(v_j - v_{jc}),
+\end{equation}
+dove il secondo termine \`e nullo sotto il clamp ed \`e l'estensione
+lineare sopra. La corrente capacitiva \`e $\ud q_j/\ud t$: la
+formulazione in carica conserva la carica, a differenza di
+$i = C(v)\,\ud v/\ud t$.
+
+In diretta la capacit\`a di svuotamento \`e comunque mascherata dalla
+capacit\`a di diffusione implicita nelle \eqref{eq:lm1}--\eqref{eq:lm3}.
+
+\subsection{Parametri e procedura di taratura}
+
+\begin{center}
+\begin{tabular}{llll}
+\hline
+Simbolo & \ssc{.ssc} & Significato & Taratura \\
+\hline
+$I_s$   & \ssc{Is}  & corrente di saturazione & caratteristica statica \eqref{eq:static} \\
+$N$     & \ssc{N}   & coefficiente di emissione & caratteristica statica \\
+$V_T$   & \ssc{Vt}  & tensione termica $kT/q$ & $26$--$34\,$mV secondo $T_j$ \\
+$\tau$  & \ssc{tau} & vita media dei portatori & \eqref{eq:extract} \\
+$T_M$   & \ssc{TM}  & tempo di transito & \eqref{eq:extract} \\
+$R_s$   & \ssc{Rs}  & resistenza serie & pendenza ad alta corrente \\
+$C_{j0}$& \ssc{Cj0} & capacit\`a di svuotamento a $0\,$V & curva $C(V)$ \\
+$V_j$   & \ssc{Vjp} & potenziale di giunzione & curva $C(V)$ \\
+$m$     & \ssc{mg}  & coefficiente di grading & curva $C(V)$ \\
+$F_C$   & \ssc{FC}  & clamp dello svuotamento & default $0{,}5$ \\
+$\delta$& \ssc{dsm} & larghezza di smoothing & default $10\,$mV \\
+\hline
+\end{tabular}
+\end{center}
+
+Procedura consigliata: (1) $R_s$, $I_s$, $N$ dalla caratteristica
+diretta a caldo; (2) $\tau$, $T_M$ dalle \eqref{eq:extract} con i dati
+di recovery; (3) $C_{j0}$, $V_j$, $m$ dalla curva $C(V)$ del datasheet
+oppure, a ritroso, dalla frequenza di ringing misurata; (4) verifica in
+double pulse test confrontando $I_{rr}$ e $t_{rr}$ simulati con la
+targa.
+
+\section{Modello dell'IGBT: \ssc{igbt\_dyn}}
+
+Il modello \`e comportamentale: canale MOS a legge quadratica, tre
+capacit\`a interelettrodiche non lineari, resistenza interna di gate e
+una corrente di coda a controllo di carica. Non \`e un modello fisico
+alla Hefner \cite{hefner1994}, ma riproduce i meccanismi che determinano
+i transitori: plateau di Miller, $\ud i/\ud t$ e $\ud v/\ud t$ imposti
+dal circuito di gate, tail current allo spegnimento.
+
+\subsection{Canale MOS}
+
+Con $v_{ov} = v_{ge} - V_{th}$ (overdrive) e le parti positive
+regolarizzate $v_{ov}^{+} = p_\delta(v_{ov})$,
+$v_{ce}^{+} = p_\delta(v_{ce})$, si definisce
+$v_x = \min_\delta\!\left(v_{ce}^{+},\, v_{ov}^{+}\right)$ e
+\begin{equation}
+i_{ch,0} = K_p \left( v_{ov}^{+}\, v_x - \frac{v_x^2}{2} \right)
+\left( 1 + \lambda\, v_{ce}^{+} \right).
+\label{eq:channel}
+\end{equation}
+Per $v_x = v_{ce}$ si ottiene la regione lineare
+$K_p ( v_{ov} v_{ce} - v_{ce}^2/2 )$, per $v_x = v_{ov}$ la saturazione
+$K_p v_{ov}^2 / 2$, con transizione smooth. $\lambda$ \`e la
+conduttanza d'uscita (default $0$). Il canale \`e unidirezionale
+($v_x \ge 0$): per $v_{ce} < 0$ conduce il \ssc{diode\_rr} esterno.
+
+$V_{th}$ e $K_p$ si fittano sulla transcaratteristica a caldo,
+$I_c = K_p (v_{ge}-V_{th})^2/2$; equivalentemente
+$K_p = g_{fs}^2/(2 I_c)$ nel punto in cui il datasheet d\`a $g_{fs}$.
+Una verifica utile del fit \`e la tensione di plateau di Miller,
+\begin{equation}
+v_{ge,\mathrm{pl}} = V_{th} + \sqrt{\frac{2 I_c}{K_p}},
+\end{equation}
+confrontabile con le forme d'onda di gate charge del datasheet.
+
+\subsection{Capacit\`a non lineari}
+
+Tutte le capacit\`a sono in formulazione di carica, $i = \ud Q/\ud t$.
+
+\paragraph{$C_{ge}$ (costante).}
+$Q_{ge} = C_{ge}\, v_{ge}$, con
+$C_{ge} = C_{ies} - C_{res}$ valutata a $V_{ce}$ alto.
+
+\paragraph{Capacit\`a di Miller $C_{gc}$.}
+\`E la capacit\`a che governa plateau e $\ud v/\ud t$. Ha due regimi
+fisici, distinti dal segno di $v_{gc}$:
+\begin{itemize}
+\item $v_{gc} > 0$ (dispositivo saturato, $v_{ce}$ basso): sotto
+l'ossido di gate c'\`e accumulazione, la capacit\`a \`e quella
+dell'ossido, costante e alta: $C_{gc} = C_{gc0}$;
+\item $v_{gc} < 0$ (blocking): sotto l'ossido si forma una regione
+svuotata in serie, la capacit\`a crolla con la tensione:
+$C_{gc} = C_{gc0} / (1 - v_{gc}/V_{jc})^{m_c}$.
+\end{itemize}
+Separando $v_{gc}$ in parte positiva $v_g^{+} = p_\delta(v_{gc})$ e
+negativa $v_g^{-} = v_{gc} - v_g^{+}$, la carica \`e
+\begin{equation}
+Q_{gc} = C_{gc0}\, v_g^{+}
+- \frac{C_{gc0} V_{jc}}{1-m_c}
+\left[ \left(1 - \frac{v_g^{-}}{V_{jc}}\right)^{1-m_c} - 1 \right].
+\end{equation}
+Per il fit: $C_{gc0} = C_{res}$ a $V_{ce} \approx 0$; $V_{jc}$ e $m_c$
+si fittano sulla curva $C_{res}(V_{ce})$ del datasheet (per
+$V_{ce} \gg v_{ge}$ vale $v_{gc} \approx -V_{ce}$). Le curve reali
+scendono di 1--2 decadi tra $0$ e $25\,$V: servono tipicamente
+$m_c \approx 0{,}6$--$0{,}9$ con $V_{jc} \approx 1\,$V.
+
+\paragraph{Capacit\`a d'uscita $C_{ce}$.}
+Svuotamento per $v_{ce} > 0$, costante $C_{ce0}$ sotto:
+\begin{equation}
+Q_{ce} = \frac{C_{ce0} V_{jo}}{1-m_o}
+\left[ \left(1 + \frac{v_{ce}^{+}}{V_{jo}}\right)^{1-m_o} - 1 \right]
++ C_{ce0}\, (v_{ce} - v_{ce}^{+}).
+\end{equation}
+Si fitta su $C_{oes}(V_{ce}) - C_{res}(V_{ce})$. \`E la capacit\`a che,
+con la $L_\sigma$ di loop e la $C_j$ del diodo, fissa la frequenza di
+ringing dopo lo spegnimento.
+
+\subsection{Corrente di coda}
+\label{sec:tail}
+
+Allo spegnimento di un IGBT il canale MOS si chiude in tempi imposti dal
+gate, ma la carica dei portatori minoritari nella regione di drift
+(iniettata dall'emettitore posteriore) deve ricombinare: una frazione
+della corrente continua a scorrere e decade con la vita media dei
+portatori. Il modello lo rappresenta con uno stato del primo ordine
+sulla corrente di coda, tenuto direttamente in ampere per il
+condizionamento numerico:
+\begin{equation}
+\tau_T\, \frac{\ud i_{\mathrm{tail}}}{\ud t}
+= f_{\mathrm{tail}}\, i_{ch,0} - i_{\mathrm{tail}},
+\qquad
+i_C = (1 - f_{\mathrm{tail}})\, i_{ch,0} + i_{\mathrm{tail}}.
+\label{eq:tail}
+\end{equation}
+In regime la \eqref{eq:tail} d\`a
+$i_{\mathrm{tail}} = f_{\mathrm{tail}}\, i_{ch,0}$ e quindi
+$i_C = i_{ch,0}$: la ripartizione non altera la statica. Allo
+spegnimento $i_{ch,0}$ collassa in tempi di gate e la coda parte da
+$f_{\mathrm{tail}}\, I_0$ decadendo con $\tau_T$. Valori tipici:
+$f_{\mathrm{tail}} = 0{,}15$--$0{,}3$, $\tau_T = 1$--$3\,\mu$s, da
+raffinare su una forma d'onda di $E_{off}$ del datasheet o su una
+misura.
+
+Limite: nella realt\`a la coda dipende anche da $v_{ce}$ (estrazione
+della carica da parte della regione di carica spaziale); qui il
+decadimento \`e puramente esponenziale. Per lo studio di overshoot e
+snubber \`e adeguato, perch\'e la sovratensione \`e dominata dal
+$\ud i/\ud t$ della caduta principale di corrente, non dalla coda.
+
+\subsection{Rete di gate}
+
+Il componente include la sola resistenza interna $R_g$ (dato di
+datasheet); driver, $R_{g,on}$/$R_{g,off}$ esterne ed eventuale
+induttanza di gate $L_g$ ($20$--$50\,$nH) vanno modellati fuori. Il
+$\ud i/\ud t$ allo spegnimento emerge dalla scarica del gate attraverso
+$R_{g,\mathrm{tot}}$ e la capacit\`a di Miller; durante il plateau
+\begin{equation}
+\frac{\ud v_{ce}}{\ud t} \approx \frac{i_g}{C_{gc}(v_{gc})},
+\qquad
+i_g = \frac{v_{ge,\mathrm{pl}} - V_{drv}}{R_{g,\mathrm{tot}}},
+\end{equation}
+il che permette di studiare direttamente il compromesso
+$R_{g,off}$--sovratensione.
+
+\subsection{Parametri}
+
+\begin{center}
+\begin{tabular}{llll}
+\hline
+Simbolo & \ssc{.ssc} & Significato & Taratura \\
+\hline
+$V_{th}$ & \ssc{Vth}  & tensione di soglia & transcaratteristica \\
+$K_p$    & \ssc{Kp}   & parametro di transconduttanza & transcaratteristica, $g_{fs}$ \\
+$\lambda$& \ssc{lam}  & conduttanza d'uscita & default $0$ \\
+$C_{ge}$ & \ssc{Cge}  & capacit\`a gate--emettitore & $C_{ies}-C_{res}$ \\
+$C_{gc0}$& \ssc{Cgc0} & Miller a $v_{gc}=0$ & $C_{res}$ a $V_{ce}\approx 0$ \\
+$V_{jc}$, $m_c$ & \ssc{Vjc}, \ssc{mc} & svuotamento Miller & fit di $C_{res}(V_{ce})$ \\
+$C_{ce0}$& \ssc{Cce0} & uscita a $v_{ce}=0$ & $C_{oes}-C_{res}$ a $V_{ce}\approx 0$ \\
+$V_{jo}$, $m_o$ & \ssc{Vjo}, \ssc{mo} & svuotamento d'uscita & fit di $C_{oes}-C_{res}$ \\
+$R_g$    & \ssc{Rg}   & resistenza interna di gate & datasheet \\
+$f_{\mathrm{tail}}$ & \ssc{ftail} & frazione di coda & $E_{off}$ o misura \\
+$\tau_T$ & \ssc{tauT} & costante di tempo della coda & $E_{off}$ o misura \\
+$\delta$ & \ssc{dsm}  & larghezza di smoothing & default $0{,}1\,$V \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Uso in circuito e limiti}
+
+Il banco di riferimento \`e il double pulse test: IGBT in basso come
+dispositivo in prova, \ssc{diode\_rr} in alto, induttanza di carico in
+parallelo al diodo, driver $\pm 15/{-}8\,$V con $R_{g,on}$ e $R_{g,off}$
+separate. Il primo impulso serve anche da precondizionamento: porta la
+corrente a regime e assesta $q_M$ del diodo prima della commutazione di
+interesse.
+
+La rete del DC link va modellata esternamente, dal condensatore verso il
+modulo: banco bulk ($C_{dc}$ + ESR + ESL), busbar ($L_{bus}$ con
+resistenza valutata alla frequenza di ringing, non in continua,
+altrimenti l'oscillazione non si smorza realisticamente), e induttanza
+interna del modulo $L_{sCE}$ in serie al collettore, tenuta separata
+perch\'e nessuno snubber esterno pu\`o ridurla. Con
+$L_\sigma = \mathrm{ESL} + L_{bus} + L_{sCE}$:
+\begin{equation}
+\Delta V_{ce} \approx L_\sigma \frac{\ud i}{\ud t},
+\qquad
+f_0 = \frac{1}{2\pi \sqrt{L_\sigma\, C_{eq}}},
+\qquad
+C_{eq} \approx C_{oes} + C_{j,\mathrm{diodo}};
+\end{equation}
+la frequenza di ringing \`e un ottimo cross check per tarare
+$L_\sigma$ contro una misura.
+
+Fenomeni riprodotti: plateau di Miller e gate charge; $\ud i/\ud t$ e
+$\ud v/\ud t$ dipendenti da $R_g$; $I_{rr}$ e softness del diodo
+dipendenti dal $\ud i/\ud t$ imposto; sovratensione
+$L_\sigma\,\ud i/\ud t$ allo spegnimento; ringing e sua interazione con
+snubber RC, RCD e condensatori di decoupling.
+
+Limiti principali: nessun calcolo di perdite n\'e dipendenza dalla
+temperatura (parametrizzare a caldo); coda non dipendente da $v_{ce}$;
+modello di recovery valido attorno al punto di estrazione
+(sez.~\ref{sec:rr}); forward recovery del diodo non riprodotto ($R_s$
+costante), quindi il contributo di $V_{FR}$ alla sovratensione di
+spegnimento dell'IGBT va eventualmente stimato a parte; capacit\`a
+fittate localmente sulle curve del datasheet.
+
+\begin{thebibliography}{9}
+
+\bibitem{lauritzen1991}
+P.~O. Lauritzen, C.~L. Ma,
+\emph{A simple diode model with reverse recovery},
+IEEE Transactions on Power Electronics, vol.~6, n.~2, pp.~188--191, 1991.
+
+\bibitem{ma1993}
+C.~L. Ma, P.~O. Lauritzen,
+\emph{A simple power diode model with forward and reverse recovery},
+IEEE Transactions on Power Electronics, vol.~8, n.~4, pp.~342--346, 1993.
+
+\bibitem{hefner1994}
+A.~R. Hefner, D.~M. Diebolt,
+\emph{An experimentally verified IGBT model implemented in the Saber
+circuit simulator},
+IEEE Transactions on Power Electronics, vol.~9, n.~5, pp.~532--542, 1994.
+
+\bibitem{massobrio}
+G.~Massobrio, P.~Antognetti,
+\emph{Semiconductor Device Modeling with SPICE}, 2a ed.,
+McGraw--Hill, 1993.
+
+\bibitem{baliga}
+B.~J. Baliga,
+\emph{Fundamentals of Power Semiconductor Devices},
+Springer, 2008.
+
+\end{thebibliography}
+
+\end{document}

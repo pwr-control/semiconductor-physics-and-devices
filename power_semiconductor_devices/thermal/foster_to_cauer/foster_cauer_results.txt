@@ -1,0 +1,86 @@
+Foster and Cauer thermal networks: worked examples
+
+1. Datasheet networks, junction to case, double-side cooled
+5SDD 70H2000: Foster R [4.533 2.255 0.868 0.345] K/kW, tau [0.4406 0.1045 0.0092 0.0022] s, R_th(j-c) 8.001 K/kW
+   Cauer R [0.9797 1.0576 3.7573 2.2064] K/kW, C [  3.533   8.434  25.208 144.436] J/K; sum C 181.61 J/K, R_k C_k [  3.462   8.919  94.713 318.683] ms
+   Foster capacitances tau/R [97.2  46.34 10.6   6.38] J/K, sum 160.5 J/K, series 3.533 J/K
+   invariants: sum R 8.0010 / 8.0010 K/kW; C_1 = 1/sum(R/tau) 3.5332 / 3.5332 J/K; sum R tau 2.24163 / sum C theta^2 2.24163 K s/kW
+   first section in closed form: C_1 = 1/sum(R/tau) 3.5332 J/K, R_1 = sum(R/tau)^2/sum(R/tau^2) 0.9797 K/kW; stored heat at 1 W, sum C_k theta_k = mean delay of the heat 0.556 s
+   accuracy: polynomial vs 200 digits 4.4e-16, bidiagonalization 1.0e-15, round trip 2.9e-15, Z_th(t) 1 us - 1000 s 2.0e-15
+   side R_th 14.5 K/kW: k = 1.8056, ladder R [1.769 1.909 6.784 3.984] K/kW (sum 14.446), C (after the junction) [ 4.67 13.96 80.  ] J/K
+   side R_th 18.0 K/kW: k = 2.2414, ladder R [2.196 2.37  8.422 4.945] K/kW (sum 17.933), C (after the junction) [ 3.76 11.25 64.44] J/K
+   parallel of the side values 8.031 K/kW; share of the heat to the first side 55.4 %
+5STP 50Q1800: Foster R [3.587 0.838 0.505 0.069] K/kW, tau [0.4299 0.0405 0.0028 0.0005] s, R_th(j-c) 4.999 K/kW
+   Cauer R [0.354  0.4213 1.4486 2.7752] K/kW, C [  2.879   4.007  32.04  110.036] J/K; sum C 148.96 J/K, R_k C_k [  1.019   1.688  46.411 305.372] ms
+   Foster capacitances tau/R [119.85  48.33   5.54   7.25] J/K, sum 181.0 J/K, series 2.879 J/K
+   invariants: sum R 4.9990 / 4.9990 K/kW; C_1 = 1/sum(R/tau) 2.8786 / 2.8786 J/K; sum R tau 1.57744 / sum C theta^2 1.57744 K s/kW
+   first section in closed form: C_1 = 1/sum(R/tau) 2.8786 J/K, R_1 = sum(R/tau)^2/sum(R/tau^2) 0.3540 K/kW; stored heat at 1 W, sum C_k theta_k = mean delay of the heat 0.474 s
+   accuracy: polynomial vs 200 digits 2.2e-16, bidiagonalization 8.9e-16, round trip 6.2e-15, Z_th(t) 1 us - 1000 s 4.7e-15
+   side R_th 10.0 K/kW: k = 2.0000, ladder R [0.708 0.843 2.897 5.55 ] K/kW (sum 9.998), C (after the junction) [ 2.   16.02 55.02] J/K
+   side R_th 10.0 K/kW: k = 2.0000, ladder R [0.708 0.843 2.897 5.55 ] K/kW (sum 9.998), C (after the junction) [ 2.   16.02 55.02] J/K
+   parallel of the side values 5.000 K/kW; share of the heat to the first side 50.0 %
+
+2. 5SDD 70H2000 on two copper bars
+   15 kW for 0.5 s, bars 620 J/K and contact 5 K/kW per side:
+      junction rise at the end of the pulse: ideal sink 97.9 K, Cauer per side on the bars 100.9 K, Foster on the bars 141.4 K (+40.5 K)
+      cases at the end: Cauer 14.1 / 12.5 K, Foster 43.5 K; bars: 0.9 K
+      heat into the bars (Cauer): 10 % of the power after 199 ms, 33 % at the end of the pulse; with the Foster network 100 % from the start
+      heat still inside the device at the end of the pulse (Cauer): 6.40 kJ of 7.5 kJ
+
+3. Synthetic press-pack, pole of 63 mm
+sides with different layers: 109 nodes, R_th(j-c) 7.624 K/kW, single side anode 14.177 / cathode 17.015 K/kW (parallel 7.734)
+   heat capacities: Si 2.56, Mo 28.0 (16.0, 12.0), Cu 171.5 J/K; total 202.0 J/K
+   exact expansion: 109 modes with R_i > 1e-12 R_th (tau 8.8e-06 - 0.337 s); exact ladder by bidiagonalization, round trip 5.3e-13; cumulative C up to 99 % of R_th 194.0 J/K, largest C 2.16e+10 J/K; polynomial expansion returns negative or infinite elements
+   fit 3 terms on 1 ms - 10 s: max error 2.36 %; tau [0.2931 0.03   0.0024] s; Cauer C [ 3.06 12.23 54.78] J/K (sum 70.1); polynomial vs bidiagonalization 4e-16
+   fit 4 terms on 1 ms - 10 s: max error 0.28 %; tau [0.331  0.0545 0.0063 0.0013] s; Cauer C [ 2.84  5.8  16.66 80.47] J/K (sum 105.8); polynomial vs bidiagonalization 1e-15
+   fit 5 terms on 1 ms - 10 s: max error 0.05 %; tau [0.3345 0.0585 0.0088 0.0028 0.0009] s; Cauer C [ 2.78  4.06  8.82 14.77 84.37] J/K (sum 114.8); polynomial vs bidiagonalization 1e-15
+   fit 6 terms on 1 ms - 10 s: max error 0.01 %; tau [0.3359 0.0615 0.0194 0.0063 0.0019 0.0007] s; Cauer C [ 2.75  3.2   6.2  13.5  31.16 76.  ] J/K (sum 132.8); polynomial vs bidiagonalization 2e-15
+   single side anode, 4-term ladder split: model 14.18 K/kW, split 13.97 K/kW; extreme deviation from 1 ms on +20.4 % at 1.58 s
+   single side anode, exact ladder split: model 14.18 K/kW, split 7.62 K/kW; extreme deviation from 1 ms on -46.2 % at 50.12 s
+   single side cathode, 4-term ladder split: model 17.02 K/kW, split 16.77 K/kW; extreme deviation from 1 ms on +19.4 % at 1.58 s
+   single side cathode, exact ladder split: model 17.02 K/kW, split 7.62 K/kW; extreme deviation from 1 ms on -55.2 % at 50.12 s
+   junction on the bars (contact 5 K/kW, 620 J/K per side), rise per kW at the end of a rectangular pulse:
+        0.010 s: model  1.273, Cauer 4 terms per side  1.274 (+0.1 %), exact ladder per side  1.273 (+0.0 %), Foster  3.782 (+197.1 %), ideal sink  1.273 K/kW
+        0.100 s: model  3.793, Cauer 4 terms per side  3.803 (+0.3 %), exact ladder per side  3.793 (-0.0 %), Foster  6.378 (+68.2 %), ideal sink  3.793 K/kW
+        0.501 s: model  6.758, Cauer 4 terms per side  7.107 (+5.2 %), exact ladder per side  6.572 (-2.8 %), Foster  9.478 (+40.3 %), ideal sink  6.572 K/kW
+        1.000 s: model  8.380, Cauer 4 terms per side  8.946 (+6.8 %), exact ladder per side  7.386 (-11.9 %), Foster 10.697 (+27.6 %), ideal sink  7.386 K/kW
+       10.000 s: model 15.834, Cauer 4 terms per side 16.644 (+5.1 %), exact ladder per side  7.624 (-51.8 %), Foster 18.187 (+14.9 %), ideal sink  7.624 K/kW
+      fit 3 terms, Cauer per side: largest deviation from the model 12.6 %
+      fit 4 terms, Cauer per side: largest deviation from the model 6.8 %
+      fit 5 terms, Cauer per side: largest deviation from the model 6.0 %
+      fit 6 terms, Cauer per side: largest deviation from the model 4.7 %
+      exact ladder per side: largest deviation 90.3 %; Foster: largest 871 % (at 0.001 s)
+   below the window, 100 us: model 0.0365 K/kW, 4-term fit 0.0344 K/kW (-6 %)
+   below the window, 10 us: model 0.0039 K/kW, 4-term fit 0.0035 K/kW (-9 %)
+sides with equal layers: 114 nodes, R_th(j-c) 6.978 K/kW, single side anode 14.177 / cathode 14.177 K/kW (parallel 7.089)
+   heat capacities: Si 2.56, Mo 32.0 (16.0, 16.0), Cu 171.5 J/K; total 206.0 J/K
+   exact expansion: 57 modes with R_i > 1e-12 R_th (tau 9.3e-06 - 0.355 s); exact ladder by bidiagonalization, round trip 1.3e-12; cumulative C up to 99 % of R_th 198.4 J/K, largest C 19.2 J/K; polynomial expansion returns negative or infinite elements
+   fit 3 terms on 1 ms - 10 s: max error 3.35 %; tau [0.3035 0.0274 0.0016] s; Cauer C [ 3.71 14.14 50.59] J/K (sum 68.4); polynomial vs bidiagonalization 1e-15
+   fit 4 terms on 1 ms - 10 s: max error 0.44 %; tau [0.3488 0.058  0.0057 0.0008] s; Cauer C [ 3.21  7.47 18.62 79.56] J/K (sum 108.9); polynomial vs bidiagonalization 7e-16
+   fit 5 terms on 1 ms - 10 s: max error 0.05 %; tau [0.3531 0.0631 0.008  0.0021 0.0005] s; Cauer C [ 2.98  5.16  9.37 16.3  84.83] J/K (sum 118.6); polynomial vs bidiagonalization 4e-15
+   fit 6 terms on 1 ms - 10 s: max error 0.01 %; tau [0.3544 0.0655 0.0149 0.0058 0.0015 0.0004] s; Cauer C [ 2.91  4.49  7.59 14.64 21.92 80.24] J/K (sum 131.8); polynomial vs bidiagonalization 1e-15
+   single side anode, 4-term ladder split: model 14.18 K/kW, split 13.95 K/kW; extreme deviation from 1 ms on +20.1 % at 1.58 s
+   single side anode, exact ladder split: model 14.18 K/kW, split 13.96 K/kW; extreme deviation from 1 ms on -2.6 % at 3.16 s
+   single side cathode, 4-term ladder split: model 14.18 K/kW, split 13.95 K/kW; extreme deviation from 1 ms on +20.1 % at 1.58 s
+   single side cathode, exact ladder split: model 14.18 K/kW, split 13.96 K/kW; extreme deviation from 1 ms on -2.6 % at 3.16 s
+   junction on the bars (contact 5 K/kW, 620 J/K per side), rise per kW at the end of a rectangular pulse:
+        0.010 s: model  0.886, Cauer 4 terms per side  0.888 (+0.3 %), exact ladder per side  0.886 (-0.0 %), Foster  3.396 (+283.5 %), ideal sink  0.886 K/kW
+        0.100 s: model  3.044, Cauer 4 terms per side  3.053 (+0.3 %), exact ladder per side  3.044 (-0.0 %), Foster  5.630 (+84.9 %), ideal sink  3.044 K/kW
+        0.501 s: model  5.977, Cauer 4 terms per side  6.306 (+5.5 %), exact ladder per side  5.958 (-0.3 %), Foster  8.723 (+45.9 %), ideal sink  5.816 K/kW
+        1.000 s: model  7.613, Cauer 4 terms per side  8.173 (+7.4 %), exact ladder per side  7.562 (-0.7 %), Foster 10.006 (+31.4 %), ideal sink  6.694 K/kW
+       10.000 s: model 15.093, Cauer 4 terms per side 15.911 (+5.4 %), exact ladder per side 14.976 (-0.8 %), Foster 17.541 (+16.2 %), ideal sink  6.978 K/kW
+      fit 3 terms, Cauer per side: largest deviation from the model 14.7 %
+      fit 4 terms, Cauer per side: largest deviation from the model 7.4 %
+      fit 5 terms, Cauer per side: largest deviation from the model 6.2 %
+      fit 6 terms, Cauer per side: largest deviation from the model 5.1 %
+      exact ladder per side: largest deviation 1.1 %; Foster: largest 1125 % (at 0.001 s)
+   below the window, 100 us: model 0.0342 K/kW, 4-term fit 0.0300 K/kW (-12 %)
+   below the window, 10 us: model 0.0038 K/kW, 4-term fit 0.0031 K/kW (-19 %)
+
+4. Accuracy against 200 digits, equal R, time constants log-spaced over 1 to 8 decades, n = 2 to 60
+   1 decade(s): polynomial expansion above 1e-6 from n = 18, above 1 % from n = 24, negative or infinite elements from n = 26; bidiagonalization at most 1.2e-14
+   2 decade(s): polynomial expansion above 1e-6 from n = 28, above 1 % from n = 36, negative or infinite elements from n = 40; bidiagonalization at most 7.9e-15
+   4 decade(s): polynomial expansion above 1e-6 from n = 48, above 1 % from n = -, negative or infinite elements from n = -; bidiagonalization at most 7.8e-15
+   8 decade(s): polynomial expansion above 1e-6 from n = -, above 1 % from n = -, negative or infinite elements from n = -; bidiagonalization at most 7.4e-15
+
+done in 18.0 s

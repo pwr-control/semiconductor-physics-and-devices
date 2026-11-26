@@ -1,0 +1,205 @@
+component mos_simple_2th
+% MOS_SIMPLE_2TH  Simplified power MOSFET + antiparallel diode, two thermal ports
+%
+% Loss-oriented switch model. The switching transient is not resolved: the
+% device commutates in one solver step and the switching energies come from
+% single datasheet values scaled to the actual current and dc-link voltage.
+% Losses are delivered to two thermal ports:
+%
+%   Ht : MOSFET die -> channel conduction (v*i_ch, both quadrants) + Eon + Eoff
+%   Hd : diode die  -> diode conduction (-v*i_d) + Err
+%
+% Differences with respect to IGBT_SIMPLE_2TH
+% -------------------------------------------
+% 1. Conduction is purely resistive (Rds_on), no knee voltage, and the channel
+%    is bidirectional. With the gate on and negative current the current
+%    returns through the channel (synchronous rectification) and the loss is
+%    charged to Ht, not to Hd. Channel and diode are two parallel branches on
+%    the same terminal voltage, so the current split in the third quadrant
+%    comes out of the equations, not out of a mode selection.
+% 2. Rds_on can be made temperature dependent (alpha_R ~= 0), which closes the
+%    electrothermal loop through Ht. With alpha_R = 0 (default) the loop is
+%    absent and the model behaves like the IGBT one: fixed 125 degC parameters.
+% 3. The diode can be a separate die (SiC MOSFET + antiparallel SiC Schottky)
+%    or the intrinsic body diode of the same die. Parameter two_die selects it:
+%      two_die = 1 -> diode losses to Hd  (separate die)
+%      two_die = 0 -> diode losses to Ht  (body diode, one junction)
+%    With two_die = 0 the port Hd carries no heat but must still be connected,
+%    e.g. to a Thermal Reference or to the same node as Ht.
+%
+% Event logic (same scheme as the IGBT model)
+% -------------------------------------------
+% Turn-on  : detected as the terminal voltage falling below Vth_on. The energy
+%            is charged only if the gate is high, so the voltage collapse
+%            caused by the diode starting to conduct during the dead time
+%            produces no Eon. The current is sampled at the event, when the
+%            commutation from the complementary device is already complete.
+% Turn-off : detected as the terminal voltage rising above Vth_off. The same
+%            crossing occurs when the diode of THIS device is reverse biased by
+%            the turn-on of the complementary switch, so both Eoff and Err are
+%            evaluated at that event and the correct one is selected by the two
+%            sample-and-hold states:
+%              ith : tracks the positive part of the channel current while the
+%                    gate is high, holds while the gate is low. It is zero
+%                    during synchronous rectification, so Eoff = 0 there.
+%              idh : tracks the diode current. It is ~0 while the channel
+%                    shunts the diode, and recovers the load current during the
+%                    dead time, so Err is charged once per switching period in
+%                    the half period where the diode actually conducts.
+% Energies are converted to power by a first-order lag of time constant tau_p,
+% which conserves energy exactly: int(P dt) = sum of the event energies.
+%
+% Default parameters are placeholders representative of a 1200 V / 600 A SiC
+% MOSFET half-bridge module at Tj = 125 degC, with an antiparallel SiC Schottky
+% diode. Replace them with datasheet values before use.
+% For a module without a separate diode (body diode only) set
+% two_die = 0, Vf ~ 3.2 V, Rd ~ 3 mOhm and Err from Qrr of the body diode.
+
+nodes
+    p  = foundation.electrical.electrical;  % D:left
+    n  = foundation.electrical.electrical;  % S:right
+    Ht = foundation.thermal.thermal;        % Ht:left
+    Hd = foundation.thermal.thermal;        % Hd:right
+end
+
+inputs
+    G = {0, '1'};                           % G:left
+end
+
+outputs
+    Pt = {0, 'W'};                          % Pt:right
+    Pd = {0, 'W'};                          % Pd:right
+end
+
+parameters
+    % --- conduction, transistor ---
+    Rds_on   = {2.5e-3, 'Ohm'};  % On-state resistance at Tj_ref
+    alpha_R  = {0,      '1/K'};  % Rds_on temperature coefficient (0 disables it)
+    Tj_ref   = {398.15, 'K'  };  % Reference junction temperature (125 degC)
+    Roff     = {1e7,    'Ohm'};  % Off-state resistance
+    % --- conduction, diode ---
+    Vf       = {1.0,    'V'  };  % Diode knee voltage at Tj_ref
+    Rd       = {2.5e-3, 'Ohm'};  % Diode differential resistance at Tj_ref
+    two_die  = {1,      '1'  };  % 1 = separate diode die (Hd), 0 = body diode (Ht)
+    % --- switching energies ---
+    Eon_ref  = {12e-3,  'J'  };  % Turn-on energy at Iref, Vref
+    Eoff_ref = {8e-3,   'J'  };  % Turn-off energy at Iref, Vref
+    Err_ref  = {0.5e-3, 'J'  };  % Diode recovery energy at Iref, Vref
+    Iref     = {600,    'A'  };  % Reference current of the energy data
+    Vref     = {600,    'V'  };  % Reference dc voltage of the energy data
+    ki       = {1,      '1'  };  % Current exponent
+    kv       = {1,      '1'  };  % Voltage exponent
+    % --- detection and filtering ---
+    Vth_off  = {50,     'V'  };  % Turn-off / recovery detection threshold
+    Vth_on   = {25,     'V'  };  % Turn-on detection threshold (< Vth_off)
+    V_sm     = {10,     'V'  };  % Smoothing width of the blocking detector
+    tau_s    = {100e-9, 's'  };  % Sample-and-hold time constant (<< dead time)
+    tau_v    = {10e-6,  's'  };  % Blocking voltage estimator time constant
+    tau_p    = {50e-6,  's'  };  % Energy-to-power lag time constant
+    i_eps    = {1e-3,   'A'  };  % Current smoothing
+    v_eps    = {1e-3,   'V'  };  % Voltage smoothing
+end
+
+variables
+    v    = {0,   'V'  };  % Terminal voltage, drain to source
+    ich  = {0,   'A'  };  % Channel current
+    ichp = {0,   'A'  };  % Positive part of the channel current
+    idio = {0,   'A'  };  % Diode forward current
+    vfd  = {0,   'V'  };  % Diode forward overdrive, -v - Vf
+    ith  = {0,   'A'  };  % Held channel current, used for Eoff
+    idh  = {0,   'A'  };  % Held diode current, used for Err
+    vbl  = {600, 'V'  };  % Held blocking voltage, used for all energies
+    hb   = {0,   '1'  };  % Blocking indicator, 0..1
+    Gch  = {0,   'S'  };  % Channel conductance
+    Rds  = {1e-3,'Ohm'};  % Actual on-state resistance
+    xr   = {1,   '1'  };  % Rds_on temperature factor
+    Eot  = {0,   'J'  };  % Lagged transistor energy
+    Eod  = {0,   'J'  };  % Lagged diode energy
+    Pswt = {0,   'W'  };  % Transistor switching power
+    Pswd = {0,   'W'  };  % Diode switching power
+    Pct  = {0,   'W'  };  % Transistor conduction power
+    Pcd  = {0,   'W'  };  % Diode conduction power
+end
+
+variables (Event = true)
+    Eqt = {0, 'J'};       % Cumulative transistor switching energy
+    Eqd = {0, 'J'};       % Cumulative diode switching energy
+end
+
+branches
+    i  : p.i  -> n.i;
+    Qt : Ht.Q -> *;
+    Qd : Hd.Q -> *;
+end
+
+equations
+    assert(Rds_on > 0)
+    assert(Rd > 0)
+    assert(Roff > Rds_on)
+    assert(Vth_on < Vth_off)
+    assert(tau_s > 0)
+    assert(tau_p > 0)
+
+    v == p.v - n.v;
+
+    % ---------------- on-state resistance ----------------
+    if alpha_R == {0, '1/K'}
+        xr  == 1;
+        Rds == Rds_on;
+    else
+        xr  == 1 + alpha_R*(Ht.T - Tj_ref);
+        Rds == Rds_on*(0.2 + (xr - 0.2 + sqrt((xr - 0.2)^2 + 0.01))/2);
+    end
+
+    % ---------------- channel and diode ----------------
+    if G > 0.5
+        Gch == 1/Rds;
+    else
+        Gch == 1/Roff;
+    end
+    ich  == Gch*v;
+
+    vfd  == -v - Vf;
+    idio == (vfd + sqrt(vfd^2 + v_eps^2))/(2*Rd);
+
+    i    == ich - idio;
+
+    % ---------------- sample and hold ----------------
+    ichp == (ich + sqrt(ich^2 + i_eps^2))/2;
+    tau_s*ith.der == G*(ichp - ith);
+    tau_s*idh.der == idio - idh;
+
+    hb == (1 + tanh((v - Vth_off)/V_sm))/2;
+    tau_v*vbl.der == hb*(v - vbl);
+
+    % ---------------- energy to power ----------------
+    tau_p*Eot.der == Eqt - Eot;
+    tau_p*Eod.der == Eqd - Eod;
+    Pswt == (Eqt - Eot)/tau_p;
+    Pswd == (Eqd - Eod)/tau_p;
+
+    % ---------------- losses and thermal ports ----------------
+    Pct == v*ich;
+    Pcd == -v*idio;
+
+    Pt == Pct + Pswt + (1 - two_die)*(Pcd + Pswd);
+    Pd == two_die*(Pcd + Pswd);
+
+    Qt == -Pt;
+    Qd == -Pd;
+end
+
+events
+    % Turn-on: terminal voltage collapse with the gate high.
+    when edge(v < Vth_on)
+        Eqt = Eqt + G*Eon_ref*(((i + abs(i))/(2*Iref))^ki)*((abs(vbl)/Vref)^kv);
+    end
+
+    % Turn-off of the channel, or reverse recovery of the diode of this device.
+    when edge(v > Vth_off)
+        Eqt = Eqt + Eoff_ref*((ith/Iref)^ki)*((abs(vbl)/Vref)^kv);
+        Eqd = Eqd + Err_ref*((idh/Iref)^ki)*((abs(vbl)/Vref)^kv);
+    end
+end
+
+end

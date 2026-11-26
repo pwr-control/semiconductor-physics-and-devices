@@ -1,0 +1,256 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+%\usepackage{lmodern}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{siunitx}
+%\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\sisetup{per-mode=symbol, range-phrase={\text{--}}, range-units=single}
+
+\title{Snubbers in Paralleled IGBT Modules\\
+\large Application Notes for the ABB/Hitachi 5SNA~1000G650300 (\SI{6.5}{kV} / \SI{1000}{A} HiPak)}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+These notes discuss the role of snubber networks when high-voltage IGBT modules are
+operated in parallel, with reference to the ABB/Hitachi 5SNA~1000G650300 HiPak module
+(\SI{6.5}{kV}, \SI{1000}{A}, SPT\textsuperscript{++} chip-set). The main conclusion is
+that snubbers are useful in a paralleled configuration, but for a specific reason: they
+act primarily as \emph{local decoupling elements} that shorten and equalize the
+commutation loops of the individual modules, thereby limiting turn-off overvoltage and
+improving dynamic current sharing. They do not correct static current imbalance, which
+must be addressed by device matching, gate-drive design, and layout. Sizing guidelines
+and a worked numerical example are given.
+\end{abstract}
+
+\section{Scope}
+Paralleling of high-power IGBT modules is common practice when the required phase
+current exceeds the rating of a single module. This document addresses one specific
+design question: whether, and how, snubber networks should be used in a paralleled
+configuration. The quantitative data refer to the 5SNA~1000G650300~\cite{ds}, but the
+methodology applies to any high-voltage HiPak-class module. The general sizing
+procedure (voltage budget, loop energy) follows the approach of the companion snubber
+design guideline~\cite{snubnote}.
+
+\section{Device Overview}
+Table~\ref{tab:device} summarizes the datasheet values relevant to the present
+discussion~\cite{ds}. Two figures deserve attention. First, the turn-off is
+intentionally slow ($R_{G,\mathrm{off}}=\SI{15}{\ohm}$, $t_f \approx
+\SIrange{380}{500}{ns}$), which limits the turn-off $di/dt$ of the IGBT itself. Second,
+the anti-parallel diode exhibits a large reverse recovery ($I_{rr}$ up to
+\SI{2.49}{kA}, $Q_{rr}$ up to \SI{2.26}{mC} at \SI{150}{\celsius}); at low temperature
+and low forward current the recovery is snappier, and this is normally the most
+violent transient in the commutation loop.
+
+\begin{table}[htb]
+\centering
+\caption{Selected 5SNA~1000G650300 data (typical unless noted)~\cite{ds}.}
+\label{tab:device}
+\begin{tabular}{llll}
+\toprule
+Parameter & Symbol & Value & Conditions \\
+\midrule
+Blocking voltage & $V_{CES}$ & \SI{6500}{V} & $T_{vj} \geq \SI{25}{\celsius}$ \\
+DC collector current & $I_C$ & \SI{1000}{A} & $T_C = \SI{110}{\celsius}$ \\
+Fall time & $t_f$ & \SIrange{380}{500}{ns} & \SI{3600}{V}, \SI{1000}{A} \\
+Turn-off delay & $t_{d(\mathrm{off})}$ & \SIrange{5.0}{5.9}{\micro s} & $R_G = \SI{15}{\ohm}$ \\
+Diode peak recovery current & $I_{rr}$ & \SIrange{1.71}{2.49}{kA} & \SI{25}{}--\SI{150}{\celsius} \\
+Recovered charge & $Q_{rr}$ & \SIrange{1.21}{2.26}{mC} & \SI{25}{}--\SI{150}{\celsius} \\
+Short-circuit current & $I_{SC}$ & \SI{4800}{A} & $V_{CC} = \SI{4500}{V}$, $t_{psc} \leq \SI{10}{\micro s}$ \\
+Internal stray inductance & $L_{\sigma,\mathrm{int}}$ & \SI{18}{nH} & CE terminals \\
+RBSOA limit & $V_{CEM,\mathrm{chip}}$ & $\leq \SI{6500}{V}$ & at chip level \\
+External gate--emitter capacitor & $C_{GE}$ & \SI{220}{nF} & datasheet test condition \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A package-level remark: the module exposes \emph{three} collector--emitter terminal
+pairs that must be paralleled by the busbar. The module is therefore already an
+internal parallel connection closed externally, and the busbar symmetry discipline
+required between modules is equally required across the terminal pairs of a single
+module.
+
+\section{The Commutation Loop with Paralleled Modules}
+With $N$ modules in parallel, the commutation loop splits into a \emph{common} section
+(DC-link capacitor bank, shared laminated busbar) and $N$ \emph{branch} sections
+(module terminals, local busbar tabs). Two effects make the paralleled case harder
+than the single-module case:
+
+\begin{enumerate}
+\item \textbf{Summed $di/dt$ in the common section.} Each module turning off
+\SI{1000}{A} in $t_f \approx \SI{0.5}{\micro s}$ contributes roughly
+\SIrange{2}{2.5}{kA\per\micro s}. The common busbar section therefore sees
+$N$ times this slope: \SIrange{4}{5}{kA\per\micro s} for two modules. The inductive
+overvoltage of the common section scales accordingly.
+\item \textbf{Asymmetry.} Any inequality between branch inductances produces unequal
+transient overvoltages and unequal dynamic current sharing during turn-off and,
+especially, during diode reverse recovery. The module with the lower-inductance branch
+takes more of the commutated current and sees a different voltage trajectory.
+\end{enumerate}
+
+\section{What the Snubber Does --- and Does Not Do}
+\subsection{Decoupling function}
+A low-inductance film capacitor mounted directly across the DC terminals of
+\emph{each} module (or each half-bridge leg, for side-by-side legs) makes the
+effective commutation loop of every module short and, if the mounting is identical,
+equal for all modules. The consequences are:
+\begin{itemize}
+\item the summed $di/dt$ is confined to the short local loop, and the common busbar
+inductance is largely removed from the switching transient;
+\item all modules commutate against the same local impedance, which improves dynamic
+current sharing at turn-off and during diode recovery;
+\item the turn-off overvoltage at the chip is reduced.
+\end{itemize}
+This decoupling function is the primary reason to use snubbers in a paralleled
+configuration, and it is the arrangement recommended by the manufacturer's paralleling
+application note~\cite{an2098}.
+
+\subsection{Clamping function}
+If a hard limit on the peak voltage is required --- in particular for short-circuit
+turn-off, where the interrupted current is $I_{SC} = \SI{4800}{A}$ per module and the
+loop overvoltage scales accordingly --- an RCD clamp per module is preferred over a
+plain capacitor. The clamp absorbs the loop energy only above the DC-link voltage and
+does not participate in the normal resonant exchange.
+
+\subsection{What snubbers do not solve}
+Snubbers act on the power loop only. They do not correct:
+\begin{itemize}
+\item \textbf{Static current sharing.} This is governed by $V_{CE,\mathrm{sat}}$
+matching (same production batch) and thermal coupling (common heatsink). The
+SPT\textsuperscript{++} chip-set has a positive temperature coefficient of
+$V_{CE,\mathrm{sat}}$ at rated current, which is inherently self-balancing.
+\item \textbf{Gate-side behavior.} Each module requires an individual gate resistor
+on its own gate lead --- a shared gate resistor invites parasitic oscillations between
+the paralleled gates --- plus the external $C_{GE} = \SI{220}{nF}$ per module as in the
+datasheet test conditions, and a symmetric gate-loop layout with matched propagation
+delays.
+\end{itemize}
+
+\section{Chip-Level Voltage Budget}
+The RBSOA limit is specified at chip level. The chip voltage exceeds the terminal
+voltage by the drop across the internal stray inductance:
+\begin{equation}
+V_{CE,\mathrm{chip}} = V_{CE,\mathrm{term}} + L_{\sigma,\mathrm{int}}\,\frac{di}{dt},
+\qquad L_{\sigma,\mathrm{int}} = \SI{18}{nH}.
+\end{equation}
+The total peak chip voltage during turn-off is
+\begin{equation}
+V_{CE,\mathrm{chip}} = V_{DC}
++ \left(L_{\mathrm{common}}\,N + L_{\mathrm{branch}} + L_{\sigma,\mathrm{int}}\right)
+\frac{di}{dt}\bigg|_{\mathrm{module}}
++ \Delta V_{\mathrm{snap}},
+\label{eq:budget}
+\end{equation}
+where $\Delta V_{\mathrm{snap}}$ accounts for the diode snap-off contribution and
+$L_{\mathrm{common}}$ is referred to a single module (its $di/dt$ is multiplied by $N$
+because it carries the summed current).
+
+One caution on the available margin: \SI{6.5}{kV} modules are typically operated from
+a \SIrange{3.6}{4}{kV} DC link primarily because of cosmic-ray failure-rate
+derating~\cite{an2042}, not to leave room for overshoot. The margin between $V_{DC}$
+and $V_{CEM,\mathrm{chip}}$ is therefore not entirely available as an overshoot
+allowance; the design budget should be set deliberately, typically reserving the
+larger share for the short-circuit turn-off case.
+
+\section{Sizing Guidelines}
+\subsection{Decoupling capacitor}
+The capacitor must absorb the magnetic energy of the loop section it decouples with an
+acceptable voltage excursion $\Delta V$. From
+$\tfrac{1}{2} L I^2 = \tfrac{1}{2} C \,\Delta V^2$:
+\begin{equation}
+C \;\geq\; L_{\mathrm{loop}} \left(\frac{I_{\mathrm{off}}}{\Delta V}\right)^{2}.
+\label{eq:csize}
+\end{equation}
+The capacitor must be a low-inductance film type (dry PP), mounted directly on the
+module terminals with identical hardware on every module; its own ESL adds to
+$L_{\mathrm{branch}}$ and must be included in Eq.~\eqref{eq:budget}.
+
+\subsection{Worked example}
+Two modules, $V_{DC} = \SI{3600}{V}$, per-module turn-off current \SI{1000}{A},
+$t_f = \SI{0.5}{\micro s}$ (hence $di/dt \approx \SI{2}{kA\per\micro s}$ per module),
+$L_{\mathrm{common}} = \SI{100}{nH}$, $L_{\mathrm{branch}} = \SI{50}{nH}$.
+
+Without snubbers, Eq.~\eqref{eq:budget} gives
+\begin{equation}
+\Delta V = (2 \cdot 100 + 50 + 18)\,\si{nH} \times \SI{2}{kA\per\micro s}
+\approx \SI{536}{V},
+\end{equation}
+i.e.\ a peak chip voltage of about \SI{4.14}{kV} --- acceptable in nominal operation,
+but the same loop interrupting $I_{SC} = \SI{4800}{A}$ per module with a faster
+current collapse leaves considerably less margin, and the diode snap adds on top.
+
+With a decoupling capacitor per module, the common \SI{100}{nH} is removed from the
+transient. Allocating $\Delta V = \SI{300}{V}$ to the decoupled section at
+$I_{\mathrm{off}} = \SI{1000}{A}$, Eq.~\eqref{eq:csize} yields
+\begin{equation}
+C \;\geq\; \SI{100}{nH} \times \left(\frac{\SI{1000}{A}}{\SI{300}{V}}\right)^{2}
+\approx \SI{1.1}{\micro F}.
+\end{equation}
+Capacitors in the \SIrange{1}{4}{\micro F} class per module are typical for this
+module family; a larger value relaxes $\Delta V$ at the cost of heavier inter-module
+resonances (next section).
+
+\subsection{RCD clamp}
+If clamping is required, the clamp capacitor is sized with Eq.~\eqref{eq:csize} using
+the short-circuit current and the clamp voltage rise as $\Delta V$; the discharge
+resistor is chosen so that $\tau = R\,C$ is a small fraction of the switching period,
+and its power rating from $P = \tfrac{1}{2} C \,\Delta V^2 f_{sw}$ per clamping event
+rate. The clamp diode must be a fast soft-recovery type rated for the full DC-link
+voltage.
+
+\section{Inter-Module Resonances}
+Plain capacitors on paralleled modules create LC meshes from module to module: the
+snubber capacitors of adjacent modules resonate through the busbar inductance between
+them. If the capacitors, their ESL, or their mounting are not identical, the result is
+ringing and circulating currents flowing through the snubbers after every commutation.
+Countermeasures, in order of preference:
+\begin{enumerate}
+\item strictly symmetric mechanical layout (identical capacitors, identical mounting,
+mirror-image busbar);
+\item damping: an RC snubber instead of a plain C, with
+$R \approx \sqrt{L_{\mathrm{mesh}}/C}$ as a near-critical starting value, verified by
+simulation or measurement;
+\item an RCD clamp, which is inherently non-resonant in normal operation.
+\end{enumerate}
+The dissipation of a damped snubber must be checked: for an RC snubber the resistor
+processes approximately $C V^2 f_{sw}$ per charge/discharge cycle pair.
+
+\section{Summary}
+\begin{itemize}
+\item Snubbers are useful when paralleling 5SNA~1000G650300 modules, primarily as
+per-module decoupling capacitors that shorten and equalize the commutation loops.
+\item The dimensioning transient is normally the diode reverse recovery (and, for
+clamps, short-circuit turn-off), not the nominal IGBT turn-off, which is slow by
+design.
+\item The voltage budget must be evaluated at chip level, and the cosmic-ray derating
+means the apparent margin to \SI{6.5}{kV} is not freely spendable on overshoot.
+\item Snubbers do not fix static sharing or gate-side interactions: individual gate
+resistors, per-module $C_{GE}$, batch-matched devices, common heatsink, and symmetric
+layout remain mandatory.
+\item Identical snubbers with identical mounting on every module; otherwise the
+snubbers themselves become a source of asymmetry and inter-module ringing.
+\end{itemize}
+
+\begin{thebibliography}{9}
+\bibitem{ds} ABB Power Grids / Hitachi, ``5SNA~1000G650300 HiPak IGBT module,''
+Datasheet 5SYA~1465-03, Oct.~2020.
+\bibitem{an2098} ABB Switzerland Ltd, Semiconductors, ``Paralleling of IGBT modules,''
+Application Note 5SYA~2098.
+\bibitem{an2053} ABB Switzerland Ltd, Semiconductors, ``Applying IGBT,''
+Application Note 5SYA~2053.
+\bibitem{an2042} ABB Switzerland Ltd, Semiconductors, ``Failure rates of IGBT modules
+due to cosmic rays,'' Application Note 5SYA~2042.
+\bibitem{snubnote} D.~Bagnara, ``Snubber design guidelines for a high-current IGBT
+half-bridge leg,'' internal technical note.
+\end{thebibliography}
+
+\end{document}

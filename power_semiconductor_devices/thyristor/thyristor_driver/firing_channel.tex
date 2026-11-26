@@ -1,0 +1,94 @@
+% ---------------------------------------------------------------
+%  Scheda di firing SCR industriale
+%  Singolo canale (1 di 6), ridisegnato dallo schema originale
+% ---------------------------------------------------------------
+\documentclass[border=12pt]{standalone}
+\usepackage[siunitx,RPvoltages]{circuitikz}
+\usetikzlibrary{calc}
+\ctikzset{bipoles/length=1.1cm}
+\ctikzset{resistors/scale=0.85, diodes/scale=0.8, capacitors/scale=0.85}
+\ctikzset{quadpoles/transformer core/width=1.8, quadpoles/transformer core/height=2.4}
+
+\begin{document}
+\begin{circuitikz}[american, font=\footnotesize]
+
+% ================== ALIMENTAZIONI ==================
+\draw (5.0,6.5) -- (18.0,6.5)
+      node[anchor=south east, font=\small] at (18.0,6.5) {$+48\,\mathrm{V}$ \; (CN2/3)};
+\draw (0,-4.0) -- (18.0,-4.0)
+      node[anchor=south east, font=\small] at (18.0,-4.0) {$0\,\mathrm{V}$ \; (CN2/4)};
+
+% ================== INGRESSO E PILOTAGGIO DI BASE ==================
+\draw (0,3.0) node[circ]{} node[anchor=south, font=\small]{CN1/1}
+      to[D, l=$D_1$, a=1N4148] (2.4,3.0)
+      to[R, l=$R_1$, a=\SI{470}{\ohm}] (4.6,3.0)
+      -- (5.2,3.0) -- (5.2,0.0) coordinate (BASE);
+
+\draw (0,-4.0) node[circ]{} node[anchor=south, font=\small]{CN1/2};
+
+\node[npn, anchor=B] (Q1) at (5.2,0.0) {};
+\node[anchor=west, font=\small] at ($(Q1.C)+(0.25,0.10)$) {Q1 \; BDX33};
+
+% R2 base-emettitore
+\draw (BASE) node[circ]{} -- (4.2,0.0) node[circ]{};
+\draw (4.2,0.0) to[R, l={$R_2$ \SI{470}{\ohm}}] (4.2,-4.0);
+% D2 protezione inversa base-emettitore
+\draw (4.2,0.0) -- (3.0,0.0);
+\draw (3.0,0.0) to[D, invert, l_={$D_2$ BYV96E}] (3.0,-4.0);
+
+% emettitore -> 0 V
+\draw (Q1.E) -- (Q1.E |- 0,-4.0);
+% collettore -> nodo COL
+\draw (Q1.C) -- (Q1.C |- 0,2.0) coordinate (COL);
+
+% ================== TRASFORMATORE DI IMPULSI ==================
+\node[transformer core] (TR) at (11.0,3.3) {};
+\node[anchor=south, font=\small] at (11.0,5.35) {TR1 \quad TI119040};
+
+\node[anchor=south east, font=\scriptsize] at ($(TR.A1)+(0.02,0.03)$) {1};
+\node[anchor=north east, font=\scriptsize] at ($(TR.A2)+(0.02,-0.03)$) {5};
+\node[anchor=south west, font=\scriptsize] at ($(TR.B1)+(-0.02,0.03)$) {10};
+\node[anchor=north west, font=\scriptsize] at ($(TR.B2)+(-0.02,-0.03)$) {8};
+
+\fill ($(TR.A1)+(0.35,0.22)$) circle (1.7pt);
+\fill ($(TR.B1)+(-0.35,0.22)$) circle (1.7pt);
+
+% --- primario alto (pin 1) -> bus a y=5.0 -> +48 V
+\draw (TR.A1) -- ++(-0.5,0) coordinate (pa);
+\draw (pa) |- (8.2,5.0);
+\draw (9.4,5.0) node[circ]{} -- (9.4,6.5);
+
+% --- primario basso (pin 5) -> D4 -> collettore
+\draw (TR.A2) -- ++(-0.5,0) coordinate (pb);
+\draw (pb) -- (pb |- 0,2.0) coordinate (pb2);
+\draw (pb2) -- (8.2,2.0) node[circ]{} -- (7.0,2.0);
+\draw (7.0,2.0) to[D, l_=$D_4$, a^=BYV96E] (COL);
+
+% --- D3 diodo di smagnetizzazione / clamp
+\draw (COL) node[circ]{} to[D, l=$D_3$, a=1N4007] (COL |- 0,6.5);
+
+% --- snubber R3 + C1 sul primario
+\draw (8.2,2.0) to[R, l=$R_3$, a=\SI{470}{\ohm} 4W] (8.2,3.5)
+                to[C, l=$C_1$, a=\SI{0.22}{\micro\farad}] (8.2,5.0) node[circ]{};
+
+% ================== SECONDARIO E RETE DI GATE ==================
+\draw (TR.B1) -- ++(0.5,0) coordinate (sa);
+\draw (sa) -- (sa |- 0,4.6) coordinate (sb);
+\draw (sb) to[D, l=$D_5$, a=BYV96E] ++(1.9,0)
+           to[R, l=$R_5$, a=\SI{10}{\ohm} 5W] ++(2.0,0) coordinate (G);
+
+\draw (TR.B2) -- ++(0.5,0) coordinate (sc);
+\draw (sc) -- (sc |- 0,0.8) coordinate (sd);
+
+\draw (G) -- (17.2,4.6) coordinate (GT);
+\draw (sd) -- (17.2,0.8) coordinate (KT);
+
+\draw (15.0,4.6) node[circ]{} to[R, l_={$R_4$ \SI{100}{\ohm}}] (15.0,0.8) node[circ]{};
+\draw (16.4,4.6) node[circ]{} to[C, l={$C_2$ \SI{100}{\pico\farad}}] (16.4,0.8) node[circ]{};
+
+\node[circ] at (GT){}; \node[anchor=west, font=\small] at ($(GT)+(0.15,0)$) {G \; (CN3/2)};
+\node[circ] at (KT){}; \node[anchor=west, font=\small] at ($(KT)+(0.15,0)$) {K \; (CN3/1)};
+
+
+\end{circuitikz}
+\end{document}

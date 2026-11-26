@@ -1,0 +1,808 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{times}
+\usepackage[margin=25mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{circuitikz}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\sisetup{
+  per-mode = symbol,
+  range-units = single,
+  detect-weight = true
+}
+
+\newcommand{\Vces}{V_{\mathrm{CES}}}
+\newcommand{\Vdc}{V_{\mathrm{DC}}}
+\newcommand{\Vpk}{V_{\mathrm{pk}}}
+\newcommand{\Ls}{L_{\sigma}}
+\newcommand{\Tvj}{T_{\mathrm{vj}}}
+
+\title{Snubber Design Guidelines for a Half-Bridge Leg\\
+Based on the Infineon FZ2400R33HE4 IHM-B Module}
+\author{Davide Bagnara}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note collects the design guidelines used to size a snubber network for a
+half-bridge leg built with two \SI{3300}{\volt} / \SI{2400}{\ampere}
+Trench/Fieldstop IGBT4 modules (Infineon FZ2400R33HE4, IHM-B package).
+It defines the voltage budget, quantifies the commutation-loop inductance,
+compares the practical snubber topologies, provides closed-form sizing
+equations, and works through a numerical example including loss estimation,
+component selection and test verification. A final section explains how to
+rescale the results to a \SI{1700}{\volt} device of the same current class.
+\end{abstract}
+
+\tableofcontents
+
+%======================================================================
+\section{Scope and device data}
+
+\subsection{Note on the part number}
+
+The request referred to a \emph{FZ2400R17} device, while the attached datasheet
+is the \textbf{FZ2400R33HE4}, i.e.\ a \SI{3300}{\volt} class module.
+All numerical results in this note are derived from the attached datasheet
+(Revision 1.30, 2022-11-22). Section~\ref{sec:rescale} gives the rescaling
+rules for a \SI{1700}{\volt} module of the same current rating, for which the
+methodology is identical but the voltage budget and the resulting component
+values differ substantially.
+
+\subsection{Data relevant to snubber design}
+
+Only the parameters that enter the snubber calculation are reproduced here.
+
+\begin{table}[htbp]
+\centering
+\caption{FZ2400R33HE4 parameters relevant to snubber sizing}
+\label{tab:device}
+\begin{tabular}{llll}
+\toprule
+Parameter & Symbol & Value & Condition \\
+\midrule
+Collector--emitter voltage      & $\Vces$        & \SI{3300}{\volt}   & $\Tvj = \SIrange{-40}{150}{\celsius}$ \\
+DC stability (cosmic ray)       & $V_{CE(D)}$    & \SI{2100}{\volt}   & $\Tvj = \SI{25}{\celsius}$, 100 FIT \\
+Nominal DC collector current    & $I_{C\,nom}$   & \SI{2400}{\ampere} & $T_C = \SI{105}{\celsius}$ \\
+Repetitive peak current         & $I_{CRM}$      & \SI{4800}{\ampere} & $t_p$ limited by $\Tvj$ \\
+Short-circuit current           & $I_{SC}$       & \SI{9600}{\ampere} & $V_{CC}=\SI{2400}{\volt}$, $t_p\le\SI{10}{\micro\second}$ \\
+Module stray inductance         & $L_{sCE}$      & \SI{6}{\nano\henry} & per switch \\
+Test circuit stray inductance   & $\Ls$          & \SI{85}{\nano\henry} & datasheet switching test \\
+Turn-off fall time              & $t_f$          & \SI{1.4}{\micro\second} & \SI{150}{\celsius}, $R_{G,off}=\SI{3.3}{\ohm}$ \\
+Turn-off delay time             & $t_{d,off}$    & \SI{4.3}{\micro\second} & \SI{150}{\celsius} \\
+Turn-off $\mathrm{d}v/\mathrm{d}t$        & $\dot v$       & \SI{1500}{\volt\per\micro\second} & $\Tvj = \SI{150}{\celsius}$ \\
+Turn-on $\mathrm{d}i/\mathrm{d}t$         & $\dot\imath$   & \SI{7600}{\ampere\per\micro\second} & $\Tvj = \SI{150}{\celsius}$ \\
+Internal gate resistance        & $R_{G,int}$    & \SI{0.5}{\ohm} & \\
+Input capacitance               & $C_{ies}$      & \SI{280}{\nano\farad} & \SI{25}{\volt}, \SI{1}{\mega\hertz} \\
+Reverse transfer capacitance    & $C_{res}$      & \SI{8}{\nano\farad} & \SI{25}{\volt}, \SI{1}{\mega\hertz} \\
+Turn-off energy                 & $E_{off}$      & \SI{4950}{\milli\joule} & \SI{2400}{\ampere}, \SI{1800}{\volt}, \SI{150}{\celsius} \\
+Diode peak recovery current     & $I_{RM}$       & \SI{2880}{\ampere} & \SI{150}{\celsius}, \SI{7600}{\ampere\per\micro\second} \\
+Diode recovered charge          & $Q_r$          & \SI{2500}{\micro\coulomb} & \SI{150}{\celsius} \\
+Diode minimum on-time           & $t_{on,min}$   & \SI{10}{\micro\second} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two entries in Table~\ref{tab:device} deserve emphasis because they dominate
+the design:
+
+\begin{itemize}[nosep]
+\item The datasheet specifies the short-circuit rating as
+      $V_{CE,\max} = \Vces - L_{sCE}\,\mathrm{d}i/\mathrm{d}t$. The
+      manufacturer therefore explicitly accounts for the inductive overshoot
+      \emph{inside} the module; every nanohenry added by the busbar reduces
+      the usable blocking voltage in the same way.
+\item The DC stability limit $V_{CE(D)} = \SI{2100}{\volt}$ (100 FIT) caps the
+      \emph{steady-state} DC-link voltage. It is a cosmic-ray failure-rate
+      limit, unrelated to the transient peak, and it must be checked
+      independently.
+\end{itemize}
+
+%======================================================================
+\section{The overvoltage mechanism}
+
+\subsection{Commutation loop}
+
+At turn-off the collector current is interrupted in the loop formed by the
+DC-link capacitor, the busbar, the module terminals and the internal module
+leads. The total loop inductance
+\begin{equation}
+L_{loop} = L_{cap,ESL} + L_{busbar} + 2\,L_{sCE}
+\label{eq:loop}
+\end{equation}
+converts the current slope into a voltage transient across the device:
+\begin{equation}
+\Vpk = \Vdc + L_{loop}\,\left|\frac{\mathrm{d}i}{\mathrm{d}t}\right|_{\max}
+       + \Delta V_{ring}.
+\label{eq:vpk}
+\end{equation}
+
+\begin{figure}[htbp]
+\centering
+\begin{circuitikz}[scale=0.95, transform shape]
+  % DC link capacitor
+  \draw (0,1) to[C, l=$C_{DC}$] (0,5);
+  \draw (0,5) -- (1.2,5);
+  \draw (0,1) -- (1.2,1);
+  % busbar inductance
+  \draw (1.2,5) to[L, l=$L_{busbar}/2$] (3.8,5);
+  \draw (1.2,1) to[L, l_=$L_{busbar}/2$] (3.8,1);
+  % module boundary
+  \draw[dashed] (4.3,0.4) rectangle (9.4,5.6);
+  \node at (6.85,5.9) {\small module};
+  % module internal inductance, upper
+  \draw (3.8,5) -- (4.3,5);
+  \draw (4.6,5) to[L, l_=$L_{sCE}$] (6.0,5);
+  \draw (4.3,5) -- (4.6,5);
+  % high-side IGBT
+  \draw (6.0,5) to[Tnigbt] (6.0,3.4);
+  % high-side diode
+  \draw (6.0,5) -- (8.2,5);
+  \draw (8.2,3.4) to[D, l_=$D_1$] (8.2,5);
+  \draw (6.0,3.4) -- (8.2,3.4);
+  % low-side IGBT
+  \draw (6.0,3.4) to[Tnigbt] (6.0,1.8);
+  % low-side diode
+  \draw (6.0,1.8) -- (8.2,1.8);
+  \draw (8.2,1.8) to[D, l_=$D_2$] (8.2,3.4);
+  % module internal inductance, lower
+  \draw (6.0,1.8) -- (6.0,1) to[L, l_=$L_{sCE}$] (4.6,1) -- (3.8,1);
+  % AC output
+  \draw (8.2,3.4) -- (10.2,3.4) node[right]{\small AC};
+  % loop current arrow
+  \draw[->,very thick,red] (1.9,4.5) -- (1.9,1.5);
+  \node[red,right] at (2.0,3.0) {$i_{loop}$};
+\end{circuitikz}
+\caption{Commutation loop of the leg. The snubber must be inserted so that it
+shortens the loop seen by the switching device, i.e.\ as close as possible to
+the module DC terminals.}
+\label{fig:loop}
+\end{figure}
+
+\subsection{Which current slope applies}
+
+An IGBT does not chop the current instantaneously: the effective slope is set
+by the gate drive and by the device physics. Three operating cases have to be
+distinguished, and they lead to very different requirements.
+
+\begin{table}[htbp]
+\centering
+\caption{Current slope estimates for the three dimensioning cases}
+\label{tab:didt}
+\begin{tabular}{lccc}
+\toprule
+Case & Current & $|\mathrm{d}i/\mathrm{d}t|$ & $\Vdc$ \\
+\midrule
+Nominal turn-off       & \SI{2400}{\ampere} & $\approx\SI{2.5}{\kilo\ampere\per\micro\second}$ & \SI{1800}{\volt} \\
+Overload turn-off      & \SI{4800}{\ampere} & $\approx\SI{4}{\kilo\ampere\per\micro\second}$   & \SI{1800}{\volt} \\
+Short-circuit turn-off & \SI{9600}{\ampere} & $\approx\SI{8}{\kilo\ampere\per\micro\second}$   & \SI{2400}{\volt} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For the nominal case the slope follows from the fall time,
+$|\mathrm{d}i/\mathrm{d}t| \approx k\,I_C/t_f$ with $k \approx 1.5\ldots 2$
+because the current waveform is not linear:
+\begin{equation}
+\left|\frac{\mathrm{d}i}{\mathrm{d}t}\right| \approx
+1.5\cdot\frac{\SI{2400}{\ampere}}{\SI{1.4}{\micro\second}}
+\approx \SI{2.5}{\kilo\ampere\per\micro\second}.
+\end{equation}
+
+The short-circuit case is far more aggressive: the desaturation protection
+turns off a current up to $I_{SC}=\SI{9600}{\ampere}$, and even with a soft
+turn-off gate drive the slope reaches several \si{\kilo\ampere\per\micro\second}.
+
+\subsection{Diode recovery}
+
+The second overvoltage source is the reverse recovery of the complementary
+diode. With $Q_r = \SI{2500}{\micro\coulomb}$ and
+$I_{RM} = \SI{2880}{\ampere}$ at \SI{150}{\celsius}, the recovery current
+decay at the end of the recovery produces a transient across the diode.
+The emitter-controlled~4 diode is intentionally soft, but snappy behaviour can
+still appear at \emph{low current} and \emph{low junction temperature} --- the
+worst case for the diode is therefore the opposite of the worst case for the
+IGBT. The datasheet minimum on-time $t_{on,min}=\SI{10}{\micro\second}$ must
+be respected, otherwise the recovery becomes uncontrolled.
+
+%======================================================================
+\section{Voltage budget}
+
+The design starts by allocating the available blocking voltage.
+Table~\ref{tab:budget} is the recommended allocation for a \SI{3300}{\volt}
+module, following common industrial practice.
+
+\begin{table}[htbp]
+\centering
+\caption{Voltage budget for the \SI{3300}{\volt} leg}
+\label{tab:budget}
+\begin{tabular}{lcl}
+\toprule
+Quantity & Value & Rationale \\
+\midrule
+$\Vces$                                & \SI{3300}{\volt} & datasheet \\
+Nominal DC link $\Vdc$                 & \SI{1800}{\volt} & $\approx 0.55\,\Vces$ \\
+Maximum DC link (regulation, braking)  & \SI{2000}{\volt} & below $V_{CE(D)}$ \\
+Cosmic-ray limit $V_{CE(D)}$           & \SI{2100}{\volt} & 100 FIT, steady state \\
+Design peak limit, normal operation    & \SI{2600}{\volt} & $\approx 0.79\,\Vces$ \\
+Design peak limit, fault turn-off      & \SI{3000}{\volt} & $\approx 0.91\,\Vces$, non-repetitive \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+From the peak limits the maximum admissible loop inductance follows directly
+by inverting~\eqref{eq:vpk}:
+\begin{equation}
+L_{loop,\max} = \frac{\Vpk^{lim} - \Vdc}{|\mathrm{d}i/\mathrm{d}t|_{\max}}.
+\label{eq:lmax}
+\end{equation}
+
+\begin{table}[htbp]
+\centering
+\caption{Maximum admissible loop inductance per case}
+\label{tab:lmax}
+\begin{tabular}{lccc}
+\toprule
+Case & $\Vpk^{lim} - \Vdc$ & $|\mathrm{d}i/\mathrm{d}t|$ & $L_{loop,\max}$ \\
+\midrule
+Nominal       & \SI{800}{\volt} & \SI{2.5}{\kilo\ampere\per\micro\second} & \SI{320}{\nano\henry} \\
+Overload      & \SI{800}{\volt} & \SI{4}{\kilo\ampere\per\micro\second}   & \SI{200}{\nano\henry} \\
+Short circuit & \SI{600}{\volt} & \SI{8}{\kilo\ampere\per\micro\second}   & \SI{75}{\nano\henry} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{This is the central result of the analysis.} In normal operation a
+well-designed laminated busbar (\SIrange{50}{100}{\nano\henry}) already
+satisfies the requirement with a comfortable margin, and \emph{no snubber is
+strictly necessary}. The dimensioning case is the \emph{short-circuit
+turn-off}, where the admissible loop inductance drops to
+\SI{75}{\nano\henry} --- a value that is very hard to reach with a real
+mechanical layout. The snubber (or an equivalent measure such as active
+clamping) is therefore justified primarily by the fault case and by the
+damping of the residual ringing, not by nominal operation.
+
+%======================================================================
+\section{Snubber topologies}
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of snubber topologies for a high-power leg}
+\label{tab:topologies}
+\begin{tabular}{p{3.0cm}p{4.2cm}p{4.2cm}p{2.6cm}}
+\toprule
+Topology & Advantages & Drawbacks & Use \\
+\midrule
+Pure C (decoupling) &
+Lossless, simple, two terminals, bolts directly onto the module &
+Undamped LC ringing with $L_{loop}$; no hard clamping &
+Standard, always present \\
+\addlinespace
+Series RC across DC terminals &
+Damps the ringing, no diode required &
+Continuous loss, $R$ must carry the full transient current &
+Common addition \\
+\addlinespace
+RCD clamp per leg &
+Hard clamp of the peak, only active above the clamp level, protects during faults &
+Requires a fast \SI{3300}{\volt} diode; bulky &
+Recommended here \\
+\addlinespace
+RCD discharge-suppressing per switch &
+Also limits $\mathrm{d}v/\mathrm{d}t$ &
+Capacitor becomes very large at \SI{2400}{\ampere}; four components per switch &
+Not attractive \\
+\addlinespace
+Undeland clamp &
+Single resistor for the whole leg, handles both IGBT and diode transients &
+More components, tuning of the discharge path &
+Alternative \\
+\addlinespace
+Active clamping (gate feedback) &
+No power components, self-adapting, excellent for SCSOA &
+Increases $E_{off}$, requires a dedicated gate driver &
+Preferred modern alternative \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\begin{circuitikz}[scale=0.9, transform shape]
+  % (a) C snubber
+  \draw (0,3.2) node[above]{(a) C};
+  \draw (0,3) -- (1.6,3);
+  \draw (0,0) -- (1.6,0);
+  \draw (0.8,3) to[C, l=$C_s$] (0.8,0);
+  % (b) RC snubber
+  \draw (3.4,3.2) node[above]{(b) RC};
+  \draw (3.4,3) -- (5.0,3);
+  \draw (3.4,0) -- (5.0,0);
+  \draw (4.2,3) to[C, l=$C_s$] (4.2,1.7);
+  \draw (4.2,1.7) to[R, l=$R_s$] (4.2,0);
+  % (c) RCD clamp
+  \draw (7.4,3.2) node[above]{(c) RCD clamp};
+  \draw (7.0,3) -- (9.8,3);
+  \draw (7.0,0) -- (9.8,0);
+  \draw (7.6,3) to[D, l_=$D_s$] (7.6,1.7);
+  \draw (7.6,1.7) to[C, l_=$C_s$] (7.6,0);
+  \draw (9.2,3) to[R, l=$R_s$] (9.2,1.7);
+  \draw (7.6,1.7) -- (9.2,1.7);
+\end{circuitikz}
+\caption{The three practical snubber configurations connected across the DC
+terminals of the leg. In (c) the resistor returns the clamped energy to the
+DC link.}
+\label{fig:topologies}
+\end{figure}
+
+%======================================================================
+\section{Sizing equations}
+
+\subsection{Pure capacitive snubber}
+
+With a capacitor $C_s$ across the DC terminals, the loop becomes a resonant
+$L_{loop}C_s$ circuit with characteristic impedance
+\begin{equation}
+Z_0 = \sqrt{\frac{L_{loop}}{C_s}}, \qquad
+f_0 = \frac{1}{2\pi\sqrt{L_{loop}C_s}}.
+\end{equation}
+If the device chopped the current instantaneously (worst case), the peak
+overshoot would be
+\begin{equation}
+\Delta V = I_{off}\,Z_0 = I_{off}\sqrt{\frac{L_{loop}}{C_s}}
+\quad\Longrightarrow\quad
+\boxed{\;C_s = \frac{L_{loop}\,I_{off}^{2}}{\Delta V^{2}}\;}
+\label{eq:cs}
+\end{equation}
+which is equivalent to the energy balance
+$\tfrac{1}{2}L_{loop}I_{off}^{2} = \tfrac{1}{2}C_s\Delta V^{2}$.
+Equation~\eqref{eq:cs} is conservative because a real IGBT dissipates most of
+the loop energy internally (this is precisely what $E_{off}$ accounts for);
+it should be used as an upper bound.
+
+Two secondary constraints must be checked:
+\begin{align}
+\hat\imath_{C_s} &= C_s \left.\frac{\mathrm{d}v}{\mathrm{d}t}\right|_{\max}
+  && \text{(peak capacitor current)} \label{eq:icap}\\
+f_0 &\ll \frac{1}{2\pi\,t_f}
+  && \text{(resonance well above the switching transient)} \nonumber
+\end{align}
+
+\subsection{RC damping snubber}
+
+Adding a series resistor turns the loop into a damped second-order system with
+damping factor
+\begin{equation}
+\zeta = \frac{R_s}{2}\sqrt{\frac{C_s}{L_{loop}}} = \frac{R_s}{2 Z_0}.
+\end{equation}
+Critical damping requires $R_s = 2Z_0$; in practice
+$\zeta = 0.5\ldots 1$, i.e.
+\begin{equation}
+\boxed{\;Z_0 \le R_s \le 2 Z_0\;}
+\end{equation}
+is a good compromise between ringing suppression and the additional voltage
+step $R_s\,I_{off}$ that the resistor itself injects. That step is the reason
+why $R_s$ cannot be increased arbitrarily:
+\begin{equation}
+\Vpk \approx \Vdc + R_s I_{off} + \Delta V_{C}.
+\end{equation}
+
+The dissipation depends on how much of the loop energy actually reaches the
+resistor. The pessimistic bound and the realistic estimate are
+\begin{align}
+P_{R,\max} &= \tfrac{1}{2}L_{loop} I_{off}^{2}\, n f_{sw} && \text{(resistor absorbs the whole loop energy)} \label{eq:prmax}\\
+P_{R,typ}  &= \tfrac{1}{2}C_s \Delta V_{ring}^{2}\, n f_{sw} && \text{(resistor damps the residual ringing only)} \label{eq:prtyp}
+\end{align}
+with $n$ the number of damped commutations per switching period ($n=2$ for a
+leg: IGBT turn-off and diode recovery).
+
+\subsection{RCD clamp}
+
+The clamp capacitor is pre-charged to $\Vdc$ through $D_s$ and absorbs the
+loop energy only when the terminal voltage exceeds $\Vdc$:
+\begin{equation}
+\tfrac{1}{2}L_{loop} I_{off}^{2}
+= \tfrac{1}{2}C_s\left(V_{cl}^{2}-\Vdc^{2}\right)
+\quad\Longrightarrow\quad
+\boxed{\;C_s = \frac{L_{loop}\,I_{off}^{2}}{V_{cl}^{2}-\Vdc^{2}}\;}
+\label{eq:ccl}
+\end{equation}
+The discharge resistor must return the stored charge to the DC link before the
+next commutation:
+\begin{equation}
+\tau = R_s C_s \le \frac{1}{5 f_{sw}}
+\quad\Longrightarrow\quad
+\boxed{\;R_s \le \frac{1}{5 f_{sw} C_s}\;}
+\label{eq:rcl}
+\end{equation}
+and its dissipation, when the clamp is active, is
+\begin{equation}
+P_{R} = \tfrac{1}{2}L_{loop}I_{off}^{2}\,n f_{sw}.
+\label{eq:pcl}
+\end{equation}
+The design intent is to set $V_{cl}$ \emph{above} the normal-operation peak so
+that the clamp does not conduct at all in steady state and~\eqref{eq:pcl}
+applies only during overload and fault events.
+
+\subsection{Discharge-suppressing RCD (for reference)}
+
+For the per-switch variant the capacitor follows from the requirement that the
+collector voltage does not rise faster than the current falls:
+\begin{equation}
+C_s \ge \frac{I_{off}\,t_f}{2\,\Delta V}.
+\end{equation}
+At $I_{off}=\SI{2400}{\ampere}$, $t_f=\SI{1.4}{\micro\second}$ and
+$\Delta V = \SI{400}{\volt}$ this gives $C_s \ge \SI{4.2}{\micro\farad}$
+\emph{per switch}, which confirms that this topology is impractical at this
+current level.
+
+%======================================================================
+\section{Worked example}
+
+\subsection{Assumptions}
+
+\begin{table}[htbp]
+\centering
+\caption{Design assumptions}
+\label{tab:assump}
+\begin{tabular}{lc}
+\toprule
+Quantity & Value \\
+\midrule
+Nominal DC link $\Vdc$              & \SI{1800}{\volt} \\
+Maximum DC link                      & \SI{2000}{\volt} \\
+Switching frequency $f_{sw}$        & \SI{500}{\hertz} \\
+Busbar inductance (laminated)        & \SI{80}{\nano\henry} \\
+Module contribution $2L_{sCE}$      & \SI{12}{\nano\henry} \\
+Capacitor ESL                        & \SI{8}{\nano\henry} \\
+\textbf{Total loop inductance $L_{loop}$} & \textbf{\SI{100}{\nano\henry}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Unsnubbed peak voltage}
+
+Using~\eqref{eq:vpk} and Table~\ref{tab:didt}:
+\begin{align}
+\text{Nominal:}\quad
+\Vpk &= 1800 + 100\times10^{-9}\cdot 2.5\times10^{9}
+      = 1800 + 250 = \SI{2050}{\volt} \\
+\text{Overload:}\quad
+\Vpk &= 1800 + 100\times10^{-9}\cdot 4\times10^{9}
+      = 1800 + 400 = \SI{2200}{\volt} \\
+\text{Short circuit:}\quad
+\Vpk &= 2400 + 100\times10^{-9}\cdot 8\times10^{9}
+      = 2400 + 800 = \SI{3200}{\volt}
+\end{align}
+
+Normal and overload operation stay well below the \SI{2600}{\volt} design
+limit. The short-circuit turn-off exceeds the \SI{3000}{\volt} fault limit and
+approaches $\Vces$: it requires either a clamp or an active-clamping gate
+driver.
+
+\subsection{Decoupling capacitor}
+
+Selecting a decoupling film capacitor $C_s = \SI{1}{\micro\farad}$:
+\begin{align}
+Z_0 &= \sqrt{\frac{\SI{100}{\nano\henry}}{\SI{1}{\micro\farad}}}
+     = \SI{0.316}{\ohm} \\
+f_0 &= \frac{1}{2\pi\sqrt{100\times10^{-9}\cdot 1\times10^{-6}}}
+     = \SI{503}{\kilo\hertz}
+\end{align}
+The resonant frequency is two decades above the reciprocal of the fall time
+($1/2\pi t_f \approx \SI{114}{\kilo\hertz}$), which is the correct
+separation. The peak current through the capacitor,
+from~\eqref{eq:icap} with the datasheet
+$\mathrm{d}v/\mathrm{d}t = \SI{1500}{\volt\per\micro\second}$, is
+\begin{equation}
+\hat\imath_{C_s} = \SI{1}{\micro\farad}\cdot\SI{1500}{\volt\per\micro\second}
+= \SI{1500}{\ampere},
+\end{equation}
+which is a hard constraint on the capacitor selection and the reason why a
+single high-$\mathrm{d}v/\mathrm{d}t$ film capacitor, or several in parallel,
+is required.
+
+\subsection{Damping resistor}
+
+\begin{equation}
+R_s = Z_0 \ldots 2Z_0 = \SIrange{0.32}{0.63}{\ohm}
+\quad\Rightarrow\quad R_s = \SI{0.5}{\ohm}\ (\zeta = 0.79)
+\end{equation}
+The voltage step introduced by the resistor at nominal current is
+$R_s I_{off} = 0.5\times 2400 = \SI{1200}{\volt}$, which is unacceptable if
+the resistor carries the full current. This is a classical trap: the
+\emph{series} RC snubber must be sized with a much smaller $R_s$, or the
+resistor must be placed only in the damping path of an RCD structure. A
+practical compromise for a pure RC across the DC terminals is
+$R_s = \SIrange{0.1}{0.2}{\ohm}$ with $C_s = \SI{2}{\micro\farad}$, accepting
+$\zeta \approx 0.35$ and a residual ringing of a few oscillations.
+
+Dissipation from~\eqref{eq:prtyp} with $\Delta V_{ring} = \SI{250}{\volt}$,
+$n=2$, $f_{sw}=\SI{500}{\hertz}$:
+\begin{equation}
+P_{R,typ} = \tfrac{1}{2}\cdot 2\times10^{-6}\cdot 250^{2}\cdot 2\cdot 500
+= \SI{62}{\watt}.
+\end{equation}
+The pessimistic bound~\eqref{eq:prmax} gives
+$\tfrac12\cdot100\times10^{-9}\cdot2400^{2}\cdot2\cdot500 = \SI{288}{\watt}$,
+which sets the thermal rating of the resistor assembly.
+
+\subsection{RCD clamp for the fault case}
+
+Clamping level $V_{cl}=\SI{2800}{\volt}$, $\Vdc = \SI{2400}{\volt}$ (fault
+condition), $I_{off}=I_{SC}=\SI{9600}{\ampere}$, from~\eqref{eq:ccl}:
+\begin{equation}
+C_s = \frac{100\times10^{-9}\cdot 9600^{2}}{2800^{2}-2400^{2}}
+    = \frac{9.216}{2.08\times10^{6}}
+    = \SI{4.4}{\micro\farad}
+\end{equation}
+Choose $C_s = \SI{5}{\micro\farad}$ (film, \SI{3000}{\volt} DC rating).
+Discharge resistor from~\eqref{eq:rcl}:
+\begin{equation}
+R_s \le \frac{1}{5\cdot 500\cdot 5\times10^{-6}} = \SI{80}{\ohm}
+\quad\Rightarrow\quad R_s = \SI{68}{\ohm}
+\end{equation}
+Since $V_{cl}=\SI{2800}{\volt}$ is above the \SI{2200}{\volt} overload peak,
+the clamp is idle in normal operation and the resistor only has to absorb the
+single-event energy
+\begin{equation}
+E_{ev} = \tfrac{1}{2} L_{loop} I_{SC}^{2}
+= \tfrac{1}{2}\cdot 100\times10^{-9}\cdot 9600^{2} = \SI{4.6}{\joule},
+\end{equation}
+plus the energy already stored in $C_s$. A pulse-rated wirewound or thick-film
+resistor of a few tens of joules single-pulse capability is sufficient.
+
+\subsection{Summary of the design}
+
+\begin{table}[htbp]
+\centering
+\caption{Resulting snubber design for the leg}
+\label{tab:result}
+\begin{tabular}{llll}
+\toprule
+Function & Component & Value & Rating \\
+\midrule
+Decoupling / damping & $C_s$ & \SIrange{1}{2}{\micro\farad} & \SI{2500}{\volt} DC, ESL $<\SI{20}{\nano\henry}$, $\hat\imath > \SI{2}{\kilo\ampere}$ \\
+Damping              & $R_s$ & \SIrange{0.1}{0.2}{\ohm}     & non-inductive, \SI{300}{\watt} \\
+Clamp capacitor      & $C_{cl}$ & \SI{5}{\micro\farad}      & \SI{3000}{\volt} DC film \\
+Clamp diode          & $D_{cl}$ & --                        & \SI{4500}{\volt}, fast, soft recovery \\
+Clamp resistor       & $R_{cl}$ & \SI{68}{\ohm}             & \SI{50}{\joule} single pulse \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%======================================================================
+\section{Component selection}
+
+\subsection{Capacitor}
+
+\begin{itemize}[nosep]
+\item Dry metallized polypropylene film, self-healing. Ceramic is unsuitable
+      at this energy and voltage.
+\item DC voltage rating $\ge 1.3\ldots1.5\times$ the maximum applied DC
+      voltage.
+\item $\mathrm{d}v/\mathrm{d}t$ rating: verify against~\eqref{eq:icap}. At
+      \SI{1500}{\volt\per\micro\second} a \SI{1}{\micro\farad} capacitor sees
+      \SI{1500}{\ampere} peak.
+\item ESL: the capacitor and its connection must contribute a small fraction
+      of $L_{loop}$. Bolt-on terminals matching the module M8 studs, not
+      leaded packages.
+\item RMS current: for the pure decoupling capacitor the RMS current is a few
+      tens of amperes; verify against the ripple spectrum.
+\end{itemize}
+
+\subsection{Resistor}
+
+\begin{itemize}[nosep]
+\item Non-inductive construction (thick film on ceramic, carbon composition,
+      or bifilar wirewound). Series inductance $<\SI{50}{\nano\henry}$,
+      otherwise the resistor defeats its own purpose.
+\item Single-pulse energy rating from the fault case, average power rating
+      from~\eqref{eq:prmax}.
+\item Several resistors in parallel, symmetrically arranged, help both the
+      thermal rating and the inductance.
+\end{itemize}
+
+\subsection{Clamp diode}
+
+\begin{itemize}[nosep]
+\item $V_{RRM} \ge \SI{4500}{\volt}$ to keep margin over the clamp level.
+\item Fast and \emph{soft} recovery: a snappy clamp diode generates its own
+      overvoltage and can be worse than no clamp.
+\item Low forward recovery voltage $V_{FR}$: the diode must not overshoot
+      during turn-on, otherwise the clamp is ineffective in the first
+      microsecond, which is exactly when it is needed.
+\end{itemize}
+
+%======================================================================
+\section{Layout guidelines}
+
+\begin{enumerate}[nosep]
+\item Laminated busbar with maximum overlap and minimum dielectric thickness
+      compatible with the insulation coordination
+      (Table~1 of the datasheet: creepage \SI{32.2}{\milli\metre}, clearance
+      \SI{19.1}{\milli\metre} terminal-to-heatsink).
+\item Snubber capacitor bolted directly to the module DC terminals, not to the
+      DC-link capacitor. The purpose is to shorten the loop seen by the chip.
+\item Symmetric arrangement if modules are paralleled: an asymmetry in
+      $L_{loop}$ translates into unequal turn-off overvoltage and unequal
+      current sharing.
+\item Keep the gate-drive return path separate from the power loop; the
+      auxiliary emitter terminals of the IHM-B package exist for this reason.
+\item Verify the loop inductance experimentally rather than trusting a
+      calculation: from a double-pulse test,
+      $L_{loop} = \Delta V / (\mathrm{d}i/\mathrm{d}t)$ measured at the
+      terminals.
+\end{enumerate}
+
+%======================================================================
+\section{Alternatives to a passive snubber}
+
+Given the results of Table~\ref{tab:lmax}, two gate-side measures may replace
+or complement the snubber:
+
+\begin{description}[nosep,style=nextline]
+\item[Active clamping] A chain of transient-voltage suppressors between
+      collector and gate feeds current back into the gate when $V_{CE}$
+      exceeds the clamp level, slowing the turn-off. It is compact, requires
+      no bulky passives, and is very effective for the short-circuit case. The
+      penalty is an increase of $E_{off}$ and of the device junction
+      temperature during the clamped event.
+\item[Two-level (soft) turn-off] The driver reduces the gate voltage to an
+      intermediate level before switching off completely, or increases
+      $R_{G,off}$ during a detected fault. With $R_{G,off}$ increased from
+      \SI{3.3}{\ohm} to \SI{10}{\ohm} the fault $\mathrm{d}i/\mathrm{d}t$ can
+      typically be halved, which relaxes~\eqref{eq:lmax} by the same factor.
+      The datasheet switching-loss and switching-time curves
+      $E = f(R_G)$ and $t = f(R_G)$ quantify the trade-off.
+\end{description}
+
+Increasing $R_{G,off}$ is the cheapest lever available and should be evaluated
+before adding copper and components: it costs switching energy but no volume.
+
+%======================================================================
+\section{Verification plan}
+
+\begin{enumerate}[nosep]
+\item \textbf{Loop inductance measurement.} Double-pulse test at low voltage;
+      extract $L_{loop}$ from $\Delta V/(\mathrm{d}i/\mathrm{d}t)$ and compare
+      with the FEM/analytical busbar estimate.
+\item \textbf{Nominal double-pulse test.} $\Vdc = \SI{2000}{\volt}$,
+      $I_C = \SI{2400}{\ampere}$, $\Tvj = \SI{150}{\celsius}$. Verify
+      $\Vpk \le \SI{2600}{\volt}$ and check the waveform against the
+      datasheet $t_{d,off}$, $t_f$ and $E_{off}$.
+\item \textbf{Overload test.} $I_C = I_{CRM} = \SI{4800}{\ampere}$; verify the
+      trajectory stays inside the RBSOA diagram of the datasheet.
+\item \textbf{Diode recovery test.} Low current (\SIrange{10}{20}{\percent} of
+      $I_{nom}$) and low temperature (\SI{25}{\celsius}) to expose snappy
+      recovery; verify $t_{on,min} \ge \SI{10}{\micro\second}$ is respected by
+      the modulator.
+\item \textbf{Short-circuit tests.} Type~I and Type~II at
+      $\Vdc = \SI{2400}{\volt}$, $t_p \le \SI{10}{\micro\second}$; verify
+      $\Vpk$ against $\Vces - L_{sCE}\,\mathrm{d}i/\mathrm{d}t$ and check the
+      clamp energy.
+\item \textbf{Thermal check of the snubber.} Measure the resistor temperature
+      in continuous operation at maximum modulation index and compare with the
+      estimate from~\eqref{eq:prtyp}.
+\end{enumerate}
+
+%======================================================================
+\section{Rescaling to a \SI{1700}{\volt} module}
+\label{sec:rescale}
+
+If the intended device is a \SI{1700}{\volt} / \SI{2400}{\ampere} module, the
+methodology is unchanged but the numbers shift as follows.
+
+\begin{table}[htbp]
+\centering
+\caption{Voltage budget comparison}
+\label{tab:rescale}
+\begin{tabular}{lcc}
+\toprule
+Quantity & \SI{3300}{\volt} class & \SI{1700}{\volt} class \\
+\midrule
+$\Vces$                             & \SI{3300}{\volt} & \SI{1700}{\volt} \\
+Typical DC link                     & \SI{1800}{\volt} & \SI{900}{\volt} \\
+Design peak, normal operation       & \SI{2600}{\volt} & \SI{1350}{\volt} \\
+Available headroom $\Vpk - \Vdc$   & \SI{800}{\volt}  & \SI{450}{\volt} \\
+Typical $t_f$                       & $\approx\SI{1.4}{\micro\second}$ & $\approx\SI{0.4}{\micro\second}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two effects act in the same, unfavourable direction:
+\begin{itemize}[nosep]
+\item the available headroom is roughly halved;
+\item the \SI{1700}{\volt} device is intrinsically faster, so
+      $\mathrm{d}i/\mathrm{d}t$ at the same current is two to three times
+      higher.
+\end{itemize}
+From~\eqref{eq:lmax} the admissible loop inductance therefore drops by roughly
+a factor of five, into the \SIrange{20}{40}{\nano\henry} range for nominal
+operation. For a \SI{1700}{\volt} leg at \SI{2400}{\ampere} the busbar design
+becomes the dominant engineering effort, and the decoupling capacitor is
+mandatory rather than optional. The clamp capacitor
+from~\eqref{eq:ccl} scales as $1/(V_{cl}^{2}-\Vdc^{2})$ and grows
+substantially: a recalculation with the actual datasheet values of the chosen
+part is required.
+
+%======================================================================
+\section{Conclusions}
+
+\begin{enumerate}[nosep]
+\item For the FZ2400R33HE4 at $\Vdc = \SI{1800}{\volt}$ with a
+      \SI{100}{\nano\henry} commutation loop, the nominal turn-off overvoltage
+      is about \SI{250}{\volt}, giving a peak of \SI{2050}{\volt} against a
+      \SI{2600}{\volt} design limit. A snubber is \emph{not} required for
+      overvoltage limitation in normal operation.
+\item A decoupling film capacitor of \SIrange{1}{2}{\micro\farad} directly on
+      the module terminals is nevertheless mandatory, to shorten the
+      commutation loop and to keep the resonance well separated from the
+      switching transient.
+\item The dimensioning case is the short-circuit turn-off, which would require
+      $L_{loop} \le \SI{75}{\nano\henry}$. This is addressed by an RCD clamp
+      set at \SI{2800}{\volt}, by active clamping, or by a soft turn-off gate
+      drive --- the last being the cheapest option.
+\item The series resistance of an RC snubber is constrained by the voltage
+      step $R_s I_{off}$; at \SI{2400}{\ampere} this forces
+      $R_s \le \SI{0.2}{\ohm}$ and accepts partial damping.
+\item All results must be confirmed by a double-pulse test at maximum voltage,
+      maximum current and \SI{150}{\celsius}, plus a short-circuit test at
+      \SI{2400}{\volt}.
+\end{enumerate}
+
+%======================================================================
+\begin{thebibliography}{9}
+
+\bibitem{ds}
+Infineon Technologies AG,
+\emph{FZ2400R33HE4 IHM-B Module Datasheet},
+Rev.~1.30, 2022-11-22.
+
+\bibitem{undeland}
+T.~M. Undeland, F.~Jenset, A.~Steinbakk, T.~Rogne, and M.~Hernes,
+``A snubber configuration for both power transistors and GTO PWM inverters,''
+in \emph{Proc. IEEE Power Electronics Specialists Conf. (PESC)},
+1984, pp.~42--53.
+
+\bibitem{mohan}
+N.~Mohan, T.~M. Undeland, and W.~P. Robbins,
+\emph{Power Electronics: Converters, Applications and Design},
+3rd ed. Hoboken, NJ, USA: Wiley, 2003, ch.~27.
+
+\bibitem{wintrich}
+A.~Wintrich, U.~Nicolai, W.~Tursky, and T.~Reimann,
+\emph{Application Manual Power Semiconductors},
+2nd ed. Ilmenau, Germany: SEMIKRON International, 2015.
+
+\bibitem{lutz}
+J.~Lutz, H.~Schlangenotto, U.~Scheuermann, and R.~De~Doncker,
+\emph{Semiconductor Power Devices: Physics, Characteristics, Reliability},
+2nd ed. Cham, Switzerland: Springer, 2018.
+
+\bibitem{an}
+Infineon Technologies AG,
+\emph{AN2008-03: Thermal equivalent circuit models} and
+\emph{AN-1103: Mounting instructions for IHM/IHV modules},
+Application Notes.
+
+\bibitem{cosmic}
+Infineon Technologies AG,
+\emph{AN2019-05: Cosmic ray induced failures in power semiconductors},
+Application Note.
+
+\end{thebibliography}
+
+\end{document}
