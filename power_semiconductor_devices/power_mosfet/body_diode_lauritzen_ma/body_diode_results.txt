@@ -1,0 +1,72 @@
+The body diode of a power MOSFET as a Lauritzen-Ma diode: worked examples
+
+1. Output charge and the recovery of the output capacitance alone
+   IPT015N10N5: C_oss law C0 = 15.88 nF, Vj = 5 V, m = 0.908; C_oss(50 V) = 1800 pF; Q_oss(50 V) = 213.0 nC; capacitive floor at 100 A/us: Irrm = 6.53 A, t = 65.3 ns, Q = 213 nC
+   IRFB4110: C_oss law C0 = 3.04 nF, Vj = 5 V, m = 0.630; C_oss(50 V) = 670 pF; Q_oss(85 V) = 78.5 nC; capacitive floor at 100 A/us: Irrm = 3.96 A, t = 39.6 ns, Q = 79 nC
+   STP30N10F7: C_oss law C0 = 2.07 nF, Vj = 1 V, m = 0.500; C_oss(50 V) = 290 pF; Q_oss(80 V) = 33.1 nC; capacitive floor at 100 A/us: Irrm = 2.57 A, t = 25.7 ns, Q = 33 nC
+   IPT015N10N5: Qrr = 316 nC of which Q_oss = 213 nC (67 %); stored charge at most 103 nC; maximum values: 632 - 284 = 348 nC
+   IRFB4110 at 25 C: Qrr = 94 nC, Q_oss(85 V) = 78.5 nC (84 %), stored at most 15.5 nC
+   IRFB4110 at 125 C: Qrr = 140 nC, Q_oss(85 V) = 78.5 nC (56 %), stored at most 61.5 nC
+   IRFB4110: terminal triangle Irrm^2/(2a) = 61 nC against a stored charge of 15 nC at 25 C: the three typical values are not consistent with the capacitance; stored charge 125 C over 25 C: 4.0 (lifetime ratio about 2.0 on a long ramp)
+   STP30N10F7 at 150 C: Qrr = 47 nC, Q_oss(80 V) estimated 33 nC (71 %), triangle Irrm^2/(2a) = 26 nC > stored charge 14 nC
+
+2. IPT015N10N5: from the datasheet to tau and T_M
+   stored charge Q_dif = Qrr - Q_oss(VR) = 316 - 213 = 103 nC
+   plateau model with (Q_dif, trr = 103 ns): Irr = 3.75 A, ta = 37.5 ns, tau_rr = 8.71 ns, flat top Tc = 65.5 ns, residual tail 0.002 A; conventions 25 %, 10 %, line differ by 0.00 %
+   exact conversion (2 iterations): tau = 46.2 ns, TM = 10.7 ns; long-ramp closed form tau = 46.2, TM = 10.7 ns; T1/tau = 22.4, IF/(a tau) = 21.6, softness s = 0.46, rho = 0.188
+   ramp model with (Q_dif, trr): no solution (trr and Qrr - Q_oss(VR) have no solution under this model); it would need a terminal triangle of 530 nC (Irrm = a trr = 10.3 A) against Qrr = 316 nC
+   softness assumed instead of trr (charge alone):
+     s     Irr [A]  tau_rr [ns]  tau [ns]  TM [ns]  | plateau: Irrm, trr25 | ramp: Irrm, trr25
+    0.25     4.06         5.1      45.7      5.7  |  4.06 A,   98.1 ns |  7.95 A,   79.5 ns
+    0.50     3.71         9.3      46.3     11.6  |  3.71 A,  103.8 ns |  7.95 A,   79.5 ns
+    1.00     3.21        16.0      48.1     24.1  |  3.21 A,  114.4 ns |  7.92 A,   79.2 ns
+    2.00     2.62        26.2      52.4     52.4  |  2.62 A,  133.3 ns |  7.83 A,   78.3 ns
+   Q_oss not subtracted, kappa = 1.39: Irr = 5.00 A, tau_rr = 38.3 ns, tau = 88 ns, TM = 68 ns
+   Q_oss not subtracted, kappa = 2.00: Irr = 6.14 A, tau_rr = 20.8 ns, tau = 82 ns, TM = 28 ns
+   Q_oss not subtracted, kappa = 2.30: Irr = 6.45 A, tau_rr = 16.7 ns, tau = 81 ns, TM = 21 ns
+   maximum values (Qrr 632 nC, trr 206 ns, Q_oss 284 nC): Irr = 3.04 A, tau_rr = 99.1 ns, tau = 130 ns, TM = 422 ns, softness 6.51
+   plausibility with D = 18 cm2/s: diffusion length sqrt(D tau) = 9 um; base width from TM (parabolic profile) 15.2 um; a base of 6-10 um stores for W^2/(2D) = 10-28 ns (tau found: 46 ns); W from tau as W^2/(2D): 13 um
+   forward: n = 2, RS = 0.4 mOhm assumed, VSD = 0.85 V at 100 A: IS = 1.43e-05 A, IS* = 1.76e-05 A; model gives 0.696 V at 10 A and 0.986 V at 300 A
+   forward: n = 1, RS = 0.4 mOhm assumed, VSD = 0.85 V at 100 A: IS = 2.03e-12 A, IS* = 2.51e-12 A; model gives 0.755 V at 10 A and 0.958 V at 300 A
+   channel on, 100 A: v = 150 mV, diode current 0.00025 A, stored charge 1.15e-11 C
+   channel on, 300 A: v = 450 mV, diode current 0.0903 A, stored charge 4.17e-09 C
+   local exponents of the set at the datasheet point: Irr ~ a^1.00, Qrr ~ a^1.00
+
+3. Simulated recovery test (complete device)
+   closed-form set, plateau driver (0.2 s): junction blocks at 43.4 ns after the zero (closed form 37.5 ns), voltage reaches VR at 96.6 ns; terminals: Irrm = 4.34 A, Qrr to the zero = 339 nC (to 2 %: 339 nC), trr 25 % = 101 ns, 10 % = 102 ns, line = 102 ns; peak voltage 58 V
+   closed-form set, ramp driver (0.2 s): junction blocks at 43.4 ns after the zero (closed form 37.5 ns), voltage reaches VR at 80.6 ns; terminals: Irrm = 8.06 A, Qrr to the zero = 350 nC (to 2 %: 350 nC), trr 25 % = 85 ns, 10 % = 86 ns, line = 86 ns; peak voltage 65 V
+   extra charge of the simulation: C_oss from the forward voltage 0.81 V to zero about 13 nC, overshoot to 58 V about 13 nC
+   refined on the simulated test, plateau driver (4 s, 6 simulations): tau = 41.7 ns (-10 %), TM = 13.2 ns (+23 %); check Qrr = 316 nC, trr = 103 ns, Irrm = 3.83 A, s = 0.52
+   refined with the steeper law (Vj = 1 V, C0 = 29 nF, m = 0.70; 4 s): tau = 40.9 ns, TM = 19.0 ns
+   refined set on the ramp driver: Irrm = 7.79 A, Qrr = 328 nC, trr 25 % = 82 ns
+   set converted without subtracting Q_oss (tau = 88 ns, TM = 68 ns) with C_oss in parallel: Irrm = 5.81 A, Qrr = 523 nC (+65 %), trr = 121 ns
+   capacitance alone (tau = 0.5 ns), ramp driver: Irrm = 6.64 A (closed form 6.53), Qrr = 241 nC, trr 25 % = 71 ns (closed form 65 ns)
+
+4. Dead time and the slopes of an application
+   set tau = 41.7 ns, TM = 13.2 ns (rho = 0.24); datasheet slope: IF/(a tau) = 24, Q_dif = 82 nC
+   datasheet slope, dead time 20 ns: Q_dif = 82.0 nC (-0.00 %)
+   datasheet slope, dead time 50 ns: Q_dif = 82.0 nC (-0.00 %)
+   application: 48 V bus, Q_oss(48 V) = 209 nC
+     slope [A/ns]  lam   | steady: Irr [A], Q_dif [nC], Q_dif/Q_oss | td = 20 ns | td = 50 ns | td = 100 ns  (Irr, Q_dif)
+        0.5       4.79 |   15.8,    407,  1.9 | 15.6 A, 400 nC | 15.7 A, 404 nC | 15.8 A, 406 nC
+        1.0       2.40 |   30.3,    763,  3.6 | 28.0 A, 674 nC | 29.2 A, 720 nC | 30.0 A, 750 nC
+        2.0       1.20 |   53.3,   1244,  5.9 | 43.6 A, 914 nC | 48.9 A, 1088 nC | 52.0 A, 1198 nC
+   abrupt-commutation limit of the set: Irr = IF tau/TM = 316 A, Q = IF (tau - tau_rr) = 3169 nC
+   charge in the base after the channel turns off, fraction of tau IF: 20 ns 38 %, 50 ns 70 %, 100 ns 91 %
+
+5. IRFB4110 and STP30N10F7
+   IRFB4110 25 C, plateau, ['Qrr', 'Irrm']: no solution (Irrm^2/(2a) exceeds Qrr - Q_oss(VR): no tail is left under the plateau model)
+   IRFB4110 25 C, plateau, ['Qrr', 'trr']: no solution (trr and Qrr - Q_oss(VR) have no solution under this model)
+   IRFB4110 25 C, ramp, ['Qrr', 'Irrm']: no solution (Irrm and Qrr - Q_oss(VR) have no solution under the ramp model)
+   IRFB4110 25 C, ramp, ['Qrr', 'trr']: no solution (trr and Qrr - Q_oss(VR) have no solution under this model)
+   IRFB4110 25 C: datasheet Irrm 3.5 A, trr 50 ns, Qrr 94 nC; capacitance alone: 4.0 A, 40 ns, 79 nC
+   IRFB4110 125 C, plateau model from (Qrr, trr): Irr = 3.17 A, tau_rr = 3.5 ns, tau = 35 ns, TM = 3.9 ns, softness 0.22; the datasheet gives no Irrm at 125 C
+   IRFB4110 25 C: a stored charge of 15 nC with the softness of 125 C corresponds to tau = 18 ns, Irr = 1.59 A (capacitance alone 4.0 A)
+   STP30N10F7 150 C: datasheet Irrm 2.3 A, trr 41 ns, Qrr 47 nC; capacitance alone (estimate): 2.6 A, 26 ns, 33 nC
+   STP30N10F7, plateau from (Qrr, trr): Irr = 1.38 A, tau_rr = 3.2 ns, tau = 17 ns, TM = 3.9 ns
+   STP30N10F7, ramp from (Qrr, trr): no solution (trr and Qrr - Q_oss(VR) have no solution under this model)
+   IPT015N10N5: Qrr*Rds(on) = 474.00 nC mOhm, Q_oss(VR)*Rds(on) = 319.50 nC mOhm
+   IRFB4110: Qrr*Rds(on) = 423.00 nC mOhm, Q_oss(VR)*Rds(on) = 353.25 nC mOhm
+   STP30N10F7: Qrr*Rds(on) = 1128.00 nC mOhm, Q_oss(VR)*Rds(on) = 795.27 nC mOhm
+
+315 macros written to body_diode_values.tex, figures in figures/, 17 s
